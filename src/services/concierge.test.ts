@@ -53,6 +53,28 @@ describe("buildConciergeRecommendation", () => {
     expect(result.time).toBeGreaterThan(0);
   });
 
+  it("matches dessert and baking requests like chocolate cake", () => {
+    const result = buildConciergeRecommendation("I want a chocolate cake recipe for dessert");
+
+    expect(result.matchFound).toBe(true);
+    expect(result.title).toContain("Cake");
+    expect(result.recipeCuisine).toBe("Dessert");
+  });
+
+  it("keeps savory matching for fried chicken", () => {
+    const result = buildConciergeRecommendation("I want fried chicken for dinner");
+
+    expect(result.matchFound).toBe(true);
+    expect(result.title).toContain("Fried Chicken");
+  });
+
+  it("keeps savory matching for chicken tacos", () => {
+    const result = buildConciergeRecommendation("I want chicken tacos for dinner");
+
+    expect(result.matchFound).toBe(true);
+    expect(result.title).toContain("Tacos");
+  });
+
   it("normalizes a structured concierge recipe response from the API", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
