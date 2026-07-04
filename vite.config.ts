@@ -18,20 +18,27 @@ const conciergeDevMiddleware = () => ({
       });
       req.on("end", async () => {
         const parsedBody = body ? JSON.parse(body) : {};
-        const status = (code: number) => {
-          res.statusCode = code;
-          return res;
-        };
-        const json = (payload: unknown) => {
-          res.statusCode = res.statusCode || 200;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(payload));
-        };
+        const createJsonResponder = (code: number) => ({
+          json: (payload: unknown) => {
+            res.statusCode = code;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(payload));
+          },
+          end: (payload?: string) => {
+            res.statusCode = code;
+            res.setHeader("Content-Type", "application/json");
+            res.end(payload ?? "");
+          },
+        });
 
         const mockReq = { method: req.method, body: parsedBody };
         const mockRes = {
-          status,
-          json,
+          status: (code: number) => createJsonResponder(code),
+          json: (payload: unknown) => {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(payload));
+          },
           setHeader: res.setHeader.bind(res),
           end: res.end.bind(res),
         };
