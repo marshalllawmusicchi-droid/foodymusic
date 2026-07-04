@@ -61,11 +61,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadedRef = useRef(false); // true once a profile is loaded for current user
 
+  const getPathForView = useCallback((viewName: View) => {
+    switch (viewName) {
+      case "concierge": return "/concierge";
+      case "recipes": return "/recipes";
+      case "recipeDetail": return "/recipes";
+      case "grocery": return "/grocery";
+      case "kitchen": return "/kitchen";
+      case "music": return "/music";
+      case "artists": return "/artists";
+      case "deals": return "/deals";
+      case "brands": return "/brands";
+      case "profile": return "/profile";
+      case "subscription": return "/subscription";
+      case "admin": return "/admin";
+      case "landing":
+      default: return "/";
+    }
+  }, []);
+
   const navigate = useCallback((v: View, recipeId?: string) => {
     if (recipeId) setActiveRecipe(recipeId);
     setView(v);
+
+    const nextPath = getPathForView(v);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, "", nextPath);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  }, [getPathForView]);
 
   // Load a profile row for a logged-in user
   const loadProfile = useCallback(async (u: { id: string; email: string; name: string }) => {

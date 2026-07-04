@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Sparkles, ArrowRight, UtensilsCrossed, Music2, PiggyBank, ChefHat, Check } from "lucide-react";
 import { Badge } from "../components/ui/Logo";
 import { useApp } from "../context/AppContext";
 import { recipes, coupons, artists, IMG } from "../data/seed";
 import { RecipeCard, ArtistCard } from "../components/Cards";
+import { getConciergeRecipe, matchRecipe } from "../services/concierge";
 
 const valueProps = [
   { icon: UtensilsCrossed, title: "Food", desc: "AI recipes tuned to your taste, budget, and pantry.", color: "text-amber-400" },
@@ -14,6 +15,18 @@ const valueProps = [
 
 export const Landing: React.FC = () => {
   const { navigate } = useApp();
+  const [prompt, setPrompt] = useState("fried chicken");
+  const [selectedRecipe, setSelectedRecipe] = useState(() => matchRecipe("fried chicken"));
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePreview = async (value: string) => {
+    setPrompt(value);
+    setIsLoading(true);
+    const recipe = await getConciergeRecipe(value);
+    setSelectedRecipe(recipe);
+    setIsLoading(false);
+  };
+
   return (
     <div className="bg-[#0a0a0b]">
       {/* Hero */}
@@ -50,6 +63,110 @@ export const Landing: React.FC = () => {
               <p className="text-sm text-zinc-400 mt-1">{v.desc}</p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-16 rounded-[32px] border border-white/10 bg-gradient-to-br from-amber-500/10 via-white/[0.03] to-emerald-500/10 p-6 sm:p-8">
+          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-300">Live mock recipe preview</p>
+              <h2 className="mt-3 text-3xl font-black text-white">Type a dish and see the card update instantly.</h2>
+              <p className="mt-3 text-sm leading-7 text-zinc-300">Try “fried chicken”, “pizza”, “salmon”, “tacos”, or “burgers” and watch the title, cuisine, image, steps, ingredients, music vibe, and grocery savings change.</p>
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handlePreview(prompt);
+                }}
+                className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4"
+              >
+                <label className="text-sm font-semibold text-zinc-200" htmlFor="landing-preview">What should we preview?</label>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    id="landing-preview"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder="Try: fried chicken"
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
+                  />
+                  <button type="submit" className="rounded-2xl bg-amber-500 px-4 py-3 text-sm font-semibold text-black transition hover:bg-amber-400">
+                    {isLoading ? "Generating..." : "Send"}
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['fried chicken', 'pizza', 'salmon', 'burgers'].map((suggestion) => (
+                  <button key={suggestion} onClick={() => { void handlePreview(suggestion); }} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-zinc-300 transition hover:border-amber-500/40">
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-white/10 bg-[#0c0d10]/80 p-4 sm:p-5">
+              <div className="overflow-hidden rounded-[24px] border border-white/10">
+                <img src={selectedRecipe.image} alt={selectedRecipe.recipeTitle} className="h-56 w-full object-cover" />
+              </div>
+              <div className="mt-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-amber-400">Live AI recipe preview</p>
+                  <h3 className="mt-1 text-2xl font-black text-white">{selectedRecipe.title}</h3>
+                </div>
+                <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-300">{selectedRecipe.recipeCuisine}</span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-zinc-300">{selectedRecipe.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-200">Prep {selectedRecipe.prepTime} min</span>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-200">Cook {selectedRecipe.cookTime} min</span>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-200">{selectedRecipe.servings} servings</span>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-200">{selectedRecipe.time} min</span>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-200">{selectedRecipe.servings} servings</span>
+                <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs text-emerald-200">${selectedRecipe.estimatedCost.toFixed(2)} est.</span>
+                <span className="rounded-full bg-[#1db954]/15 px-3 py-1 text-xs text-[#1db954]">{selectedRecipe.musicVibe}</span>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Ingredients</p>
+                  <ul className="mt-3 space-y-2 text-sm text-zinc-300">
+                    {selectedRecipe.ingredients.slice(0, 4).map((item) => (
+                      <li key={item.name} className="flex items-center justify-between gap-3">
+                        <span>{item.name}</span>
+                        <span className="text-zinc-500">{item.qty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Steps</p>
+                  <ol className="mt-3 space-y-2 text-sm text-zinc-300">
+                    {selectedRecipe.steps.slice(0, 3).map((step, index) => (
+                      <li key={step} className="flex gap-2">
+                        <span className="text-amber-400">{index + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.25em] text-emerald-300">Music vibe</p>
+                  <p className="mt-2 font-semibold text-white">{selectedRecipe.musicVibe}</p>
+                </div>
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.25em] text-amber-300">Grocery savings</p>
+                  <p className="mt-2 font-semibold text-white">Save ${selectedRecipe.grocerySavings.toFixed(2)} with mock coupon stack</p>
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs text-zinc-500">Current recipe: {selectedRecipe.title}</p>
+            </div>
+          </div>
         </div>
 
         {/* Featured recipes */}

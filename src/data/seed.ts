@@ -55,7 +55,7 @@ export type Recipe = {
 
 const cuisineList = ["Italian", "Mexican", "American", "Asian", "Mediterranean", "Indian", "BBQ", "Comfort"];
 const recipeNames = [
-  "Truffle Mushroom Risotto", "Smoky Birria Tacos", "Honey Glazed Salmon", "Thai Basil Chicken",
+  "Seasonal Mushroom Risotto", "Smoky Birria Tacos", "Honey Glazed Salmon", "Thai Basil Chicken",
   "Charred Lemon Branzino", "Butter Chicken Masala", "Brisket Burnt Ends", "Loaded Mac & Cheese",
   "Wild Mushroom Pizza", "Korean BBQ Bowl", "Herb Roast Chicken", "Spicy Shrimp Linguine",
   "Lamb Gyro Platter", "Coconut Curry Bowl", "Pulled Pork Sliders", "Garlic Butter Steak",
