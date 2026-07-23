@@ -23,13 +23,16 @@ export const ForkClef: React.FC<{ size?: number; className?: string }> = ({ size
   </svg>
 );
 
-export const Logo: React.FC<{ size?: number; onClick?: () => void }> = ({ size = 32, onClick }) => (
-  <div onClick={onClick} className="flex items-center gap-2 cursor-pointer select-none">
-    <ForkClef size={size} />
-    <div className="leading-none">
-      <span className="text-lg font-bold tracking-tight text-white">Foody</span>
-      <span className="text-lg font-bold tracking-tight text-amber-400">Music</span>
-    </div>
+export const Logo: React.FC<{ size?: number; onClick?: () => void }> = ({ onClick }) => (
+  <div
+    onClick={onClick}
+    className="flex w-full items-center justify-center cursor-pointer select-none lg:-mx-4 lg:-mt-3 lg:-mb-4 lg:w-[calc(100%+2rem)]"
+  >
+    <img
+      src="/logo.PNG"
+      alt="FoodyMusic"
+      className="h-auto max-w-none object-contain w-[170px] lg:w-[82.5%]"
+    />
   </div>
 );
 
