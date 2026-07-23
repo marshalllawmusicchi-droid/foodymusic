@@ -1,3 +1,5 @@
+import { getOpenAIApiKey, getOpenAIModel } from "./openai-config";
+
 const parseRecipeFromContent = (content: string) => {
   const cleaned = content
     .replace(/^```json\s*/i, "")
@@ -101,7 +103,8 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = getOpenAIApiKey();
+  const model = getOpenAIModel();
 
   if (!apiKey) {
     res.status(503).json({
@@ -120,7 +123,7 @@ export default async function handler(req: any, res: any) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model,
         temperature: 0.7,
         response_format: { type: "json_object" },
         messages: [

@@ -2,6 +2,13 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import conciergeHandler from "./api/concierge";
+import { DEFAULT_OPENAI_MODEL } from "./api/openai-config";
+
+const applyOpenAIEnv = (mode: string) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  process.env.OPENAI_API_KEY = (process.env.OPENAI_API_KEY || env.OPENAI_API_KEY || "").trim();
+  process.env.OPENAI_MODEL = (process.env.OPENAI_MODEL || env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL).trim();
+};
 
 const conciergeDevMiddleware = () => ({
   name: "concierge-api-dev",
@@ -11,6 +18,8 @@ const conciergeDevMiddleware = () => ({
         next();
         return;
       }
+
+      applyOpenAIEnv(server.config.mode);
 
       let body = "";
       req.on("data", (chunk: string) => {
@@ -57,9 +66,7 @@ const conciergeDevMiddleware = () => ({
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || env.OPENAI_API_KEY;
-  process.env.OPENAI_MODEL = process.env.OPENAI_MODEL || env.OPENAI_MODEL;
+  applyOpenAIEnv(mode);
 
   return {
   base: "/",
