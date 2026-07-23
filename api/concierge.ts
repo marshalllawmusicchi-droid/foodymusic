@@ -8,7 +8,36 @@ const parseRecipeFromContent = (content: string) => {
   return JSON.parse(cleaned);
 };
 
-const fallbackRecipe = {
+export type ConciergeRecipePayload = {
+  title: string;
+  description: string;
+  ingredients: Array<{ name: string; qty: string }>;
+  steps: string[];
+  prepTime: number;
+  cookTime: number;
+  totalTime: number;
+  servings: number;
+  cuisine: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  estimatedCost: number;
+  costPerServing: number;
+  vibe: string;
+  summary: string;
+  nutrition: {
+    calories: number;
+    protein: string;
+    carbs: string;
+    fat: string;
+    summary: string;
+  };
+  playlist: {
+    title: string;
+    mood: string;
+    description: string;
+  };
+};
+
+const fallbackRecipe: ConciergeRecipePayload = {
   title: "Recipe suggestion",
   description: "A helpful kitchen idea based on your request.",
   ingredients: [],
@@ -18,10 +47,46 @@ const fallbackRecipe = {
   totalTime: 35,
   servings: 4,
   cuisine: "Mixed",
+  difficulty: "Easy",
   estimatedCost: 12,
   costPerServing: 3,
-  vibe: "Comforting"
+  vibe: "Comforting",
+  summary: "A quick, budget-friendly meal idea.",
+  nutrition: {
+    calories: 450,
+    protein: "25g",
+    carbs: "40g",
+    fat: "18g",
+    summary: "Balanced home-cooked meal with moderate calories per serving.",
+  },
+  playlist: {
+    title: "Cooking Vibes",
+    mood: "Chill and upbeat",
+    description: "Spotify playlist integration coming soon — cook along to curated tracks matched to your meal.",
+  },
 };
+
+const SYSTEM_PROMPT = `You are Foody Music's AI cooking concierge. Respond with valid JSON only — no markdown, no code fences.
+
+Return a recipe object with these exact fields:
+- title (string)
+- description (string, 1-2 sentences)
+- ingredients (array of {name, qty})
+- steps (array of strings, clear step-by-step instructions)
+- prepTime (number, minutes)
+- cookTime (number, minutes)
+- totalTime (number, minutes)
+- servings (number)
+- cuisine (string)
+- difficulty ("Easy" | "Medium" | "Hard")
+- estimatedCost (number, USD for all ingredients)
+- costPerServing (number, USD)
+- vibe (string, cooking mood)
+- summary (string, one sentence)
+- nutrition ({ calories: number, protein: string, carbs: string, fat: string, summary: string })
+- playlist ({ title: string, mood: string, description: string — a placeholder playlist suggestion for future Spotify integration })
+
+Tailor the recipe to the user's ingredients, budget, and preferences when mentioned. Be practical and realistic with costs and nutrition estimates.`;
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -36,12 +101,14 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  console.log("concierge prompt", prompt);
-
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    res.status(200).json({ recipe: fallbackRecipe });
+    res.status(503).json({
+      error: "OpenAI API key is not configured. Add OPENAI_API_KEY to your environment variables.",
+      recipe: fallbackRecipe,
+      source: "fallback",
+    });
     return;
   }
 
@@ -53,49 +120,51 @@ export default async function handler(req: any, res: any) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         temperature: 0.7,
+        response_format: { type: "json_object" },
         messages: [
-          {
-            role: "system",
-            content:
-              "You are a helpful cooking concierge. Respond with valid JSON only. Return a recipe object with title, description, ingredients (array of {name, qty}), steps (array of strings), prepTime, cookTime, totalTime, servings, cuisine, estimatedCost, costPerServing, vibe, and a short summary."
-          },
+          { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Generate a recipe for this request: ${prompt}. Return a concise recipe with ingredients, steps, prep time, cook time, total time, servings, cuisine, estimated cost, cost per serving, vibe, and a short summary. Do not include markdown.`
-          }
-        ]
-      })
+            content: `Generate a complete recipe for this request: ${prompt}`,
+          },
+        ],
+      }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      res.status(response.status).json({ error: errorText });
+      let errorMessage = "The AI service returned an error. Please try again.";
+      try {
+        const errorBody = await response.json();
+        errorMessage = errorBody?.error?.message || errorMessage;
+      } catch {
+        // keep default message
+      }
+      res.status(response.status >= 500 ? 502 : response.status).json({ error: errorMessage });
       return;
     }
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content ?? "";
 
-    let recipe;
+    let recipe: ConciergeRecipePayload;
 
     try {
       recipe = typeof content === "string" ? parseRecipeFromContent(content) : content;
     } catch {
-      res.status(200).json({ recipe: fallbackRecipe });
+      res.status(502).json({ error: "The AI returned an unreadable response. Please try again." });
       return;
     }
 
     if (!recipe?.title) {
-      res.status(500).json({ error: "OpenAI returned an empty recipe" });
+      res.status(502).json({ error: "The AI returned an empty recipe. Please try again." });
       return;
     }
 
-    console.log("concierge response title", recipe.title);
-    res.status(200).json({ recipe });
+    res.status(200).json({ recipe, source: "openai" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    res.status(500).json({ error: message });
+    res.status(500).json({ error: `Unable to generate recipe: ${message}` });
   }
 }

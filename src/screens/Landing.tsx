@@ -22,8 +22,8 @@ export const Landing: React.FC = () => {
   const handlePreview = async (value: string) => {
     setPrompt(value);
     setIsLoading(true);
-    const recipe = await getConciergeRecipe(value);
-    setSelectedRecipe(recipe);
+    const result = await getConciergeRecipe(value);
+    setSelectedRecipe(result.ok ? result.recipe : result.recipe ?? matchRecipe(value));
     setIsLoading(false);
   };
 

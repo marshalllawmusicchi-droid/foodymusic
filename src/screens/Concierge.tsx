@@ -1,192 +1,81 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Sparkles, Send, ArrowRight, Clock3, DollarSign, ChefHat, Music4, ShoppingBag, ListChecks, Info } from "lucide-react";
-import { ForkClef, Badge, Waveform } from "../components/ui/Logo";
+import { Sparkles, Send, ArrowRight, Clock3, DollarSign, Music4, ShoppingBag, Info, AlertCircle, Loader2, Flame } from "lucide-react";
+import { ForkClef, Waveform } from "../components/ui/Logo";
 import { useApp } from "../context/AppContext";
-import { PlaylistCard, CouponCard, ProductCard, ArtistCard } from "../components/Cards";
-import { suggestedPrompts, recipes, coupons, artists, playlists, products, conciergeResponses, type ConciergeResponse } from "../data/seed";
-import { buildConciergeRecommendation, getConciergeRecipe } from "../services/concierge";
+import { CouponCard, ProductCard, ArtistCard } from "../components/Cards";
+import { suggestedPrompts, coupons, artists, products } from "../data/seed";
+import { getConciergeRecipe, type ConciergeRecommendation } from "../services/concierge";
 
 const money = (n: number) => "$" + n.toFixed(2);
 
-const ResponseStack: React.FC<{ resp: ConciergeResponse }> = ({ resp }) => {
-  const { navigate, addGrocery } = useApp();
-  const recipe = recipes.find((r) => r.id === resp.recipeId)!;
-  const playlist = playlists.find((p) => p.id === resp.playlistId)!;
-  const respArtists = artists.filter((a) => resp.artistIds.includes(a.id));
-  const respCoupons = coupons.filter((c) => resp.coupons.includes(c.id));
-  const respKitchen = products.filter((k) => resp.kitchenIds.includes(k.id));
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-white/[0.03] to-emerald-500/10 p-4 sm:p-5">
-        <p className="text-sm leading-6 text-zinc-300">{resp.intro}</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl bg-black/20 border border-white/10 p-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-zinc-500">Meal cost</p>
-            <p className="mt-1 text-lg font-black text-white">{money(resp.cost.mealCost)}</p>
-          </div>
-          <div className="rounded-xl bg-black/20 border border-white/10 p-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-zinc-500">You save</p>
-            <p className="mt-1 text-lg font-black text-emerald-400">{money(resp.cost.savings)}</p>
-          </div>
-          <div className="rounded-xl bg-black/20 border border-white/10 p-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-zinc-500">Per serving</p>
-            <p className="mt-1 text-lg font-black text-amber-400">{money(resp.cost.perServing)}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Recipe recommendation</p>
-              <h4 className="mt-1 font-semibold text-white">{recipe.title}</h4>
-            </div>
-            <button onClick={() => navigate("recipeDetail", recipe.id)} className="flex items-center gap-1 text-sm font-semibold text-amber-400">
-              View <ArrowRight size={15} />
-            </button>
-          </div>
-          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-500/20 bg-black/20 p-3 sm:flex-row">
-            <img src={recipe.image} alt={recipe.title} className="h-24 w-full rounded-xl object-cover sm:w-28" />
-            <div className="flex-1">
-              <p className="text-sm text-zinc-300">{recipe.description}</p>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-400">
-                <span className="rounded-full bg-white/10 px-2.5 py-1">{recipe.cuisine}</span>
-                <span className="rounded-full bg-white/10 px-2.5 py-1">{recipe.time} min</span>
-                <span className="rounded-full bg-white/10 px-2.5 py-1">{recipe.servings} servings</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-white/[0.03] p-4">
-          <h4 className="font-semibold text-white">Why this fits</h4>
-          <ul className="mt-3 space-y-2 text-sm text-zinc-300">
-            <li>• Built around your pantry and budget.</li>
-            <li>• Fast enough for a weeknight but still feels premium.</li>
-            <li>• Comes with playlist, savings, and gear suggestions.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Ingredients</p>
-              <h4 className="mt-1 font-semibold text-white">Shopping list</h4>
-            </div>
-            <button onClick={() => { addGrocery(resp.shoppingList.map((item) => item.name)); navigate("grocery"); }} className="flex items-center gap-1 text-sm font-semibold text-emerald-400">
-              <ShoppingBag size={14} /> Add all
-            </button>
-          </div>
-          <div className="mt-3 grid gap-2">
-            {resp.shoppingList.map((item) => (
-              <div key={item.name} className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2 text-sm">
-                <span className="text-zinc-300">{item.name}</span>
-                <span className="text-zinc-500">{item.qty}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Cooking instructions</p>
-          <ol className="mt-3 space-y-2 text-sm text-zinc-300">
-            {recipe.steps.slice(0, 4).map((step, index) => (
-              <li key={step} className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-300">{index + 1}</span>
-                <span>{step}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-[#1db954]/20 bg-gradient-to-br from-[#1db954]/10 to-white/[0.03] p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-[#1db954]">Spotify playlist suggestion</p>
-            <h4 className="mt-1 font-semibold text-white">{playlist.title}</h4>
-          </div>
-          <Waveform />
-        </div>
-        <div className="mt-3">
-          <PlaylistCard playlist={playlist} compact />
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Grocery coupons & savings</p>
-          <div className="mt-3 grid gap-3">
-            {respCoupons.map((coupon) => (
-              <CouponCard key={coupon.id} coupon={coupon} />
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Kitchen+ tools</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {respKitchen.map((tool) => (
-              <div key={tool.id} onClick={() => navigate("kitchen")} className="cursor-pointer">
-                <ProductCard product={tool} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Featured artist</p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {respArtists.map((artist) => (
-            <ArtistCard key={artist.id} artist={artist} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+const difficultyColor = (level: string) => {
+  if (level === "Easy") return "text-emerald-400 bg-emerald-500/15";
+  if (level === "Hard") return "text-rose-400 bg-rose-500/15";
+  return "text-amber-400 bg-amber-500/15";
 };
 
-type Msg = { role: "user" | "ai"; text?: string; resp?: ConciergeResponse; response?: ReturnType<typeof buildConciergeRecommendation> };
+const ErrorBanner: React.FC<{ message: string; onRetry?: () => void }> = ({ message, onRetry }) => (
+  <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
+    <div className="flex items-start gap-3">
+      <AlertCircle size={18} className="mt-0.5 shrink-0 text-rose-400" />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-rose-200">Something went wrong</p>
+        <p className="mt-1 text-sm text-zinc-300">{message}</p>
+        {onRetry && (
+          <button onClick={onRetry} className="mt-3 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20">
+            Try again
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+);
 
-const MockResponseStack: React.FC<{ response: ReturnType<typeof buildConciergeRecommendation> }> = ({ response }) => {
-  const { navigate } = useApp();
-  const playlist = playlists.find((p) => p.id === response.playlistId)!;
-  const artist = artists.find((a) => a.id === response.artistId)!;
+const RecipeResponseStack: React.FC<{ response: ConciergeRecommendation; error?: string; onRetry?: () => void }> = ({ response, error, onRetry }) => {
+  const { navigate, addGrocery } = useApp();
   const respCoupons = coupons.filter((c) => response.couponIds.includes(c.id));
   const respTools = products.filter((p) => response.toolIds.includes(p.id));
+  const artist = artists.find((a) => a.id === response.artistId);
 
   if (!response.matchFound) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-300">
-          <Sparkles size={12} /> Concierge match
-        </div>
-        <h3 className="mt-3 text-xl font-black text-white">{response.title}</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-300">{response.description}</p>
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-          Try a prompt like “fried chicken”, “burgers”, “tacos”, “pizza”, “steak”, “salmon”, “pasta”, “chili”, “BBQ ribs”, “meatloaf”, or “shrimp”.
+      <div className="space-y-4">
+        {error && <ErrorBanner message={error} onRetry={onRetry} />}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-300">
+            <Sparkles size={12} /> AI Concierge
+          </div>
+          <h3 className="mt-3 text-xl font-black text-white">{response.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">{response.description}</p>
         </div>
       </div>
     );
   }
 
+  const isAiGenerated = response.source === "openai";
+
   return (
     <div className="space-y-4">
+      {error && <ErrorBanner message={error} onRetry={onRetry} />}
+
       <div className="rounded-[24px] border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-white/[0.03] to-emerald-500/10 p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-300">
-              <Sparkles size={12} /> Foody Music AI Concierge
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-300">
+                <Sparkles size={12} /> Foody Music AI Concierge
+              </div>
+              {isAiGenerated ? (
+                <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">AI generated</span>
+              ) : (
+                <span className="rounded-full bg-zinc-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400">Sample recipe</span>
+              )}
             </div>
             <h3 className="mt-3 text-2xl font-black text-white">{response.title}</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">{response.description}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-200">{response.recipeCuisine}</span>
+              <span className={`rounded-full px-3 py-1 text-xs ${difficultyColor(response.difficulty)}`}>{response.difficulty}</span>
               <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs text-emerald-200">{response.budgetLabel}</span>
               <span className="rounded-full bg-[#1db954]/15 px-3 py-1 text-xs text-[#1db954]">{response.servings} servings</span>
               <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs text-amber-200">Prep {response.prepTime} min</span>
@@ -250,9 +139,14 @@ const MockResponseStack: React.FC<{ response: ReturnType<typeof buildConciergeRe
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Ingredients</p>
-              <h4 className="mt-1 font-semibold text-white">Core pantry list</h4>
+              <h4 className="mt-1 font-semibold text-white">Shopping list</h4>
             </div>
-            <div className="flex items-center gap-1 text-sm text-zinc-400"><ListChecks size={14} /> Ready</div>
+            <button
+              onClick={() => { addGrocery(response.ingredients.map((item) => item.name)); navigate("grocery"); }}
+              className="flex items-center gap-1 text-sm font-semibold text-emerald-400"
+            >
+              <ShoppingBag size={14} /> Add all
+            </button>
           </div>
           <div className="mt-3 grid gap-2">
             {response.ingredients.map((item) => (
@@ -277,45 +171,70 @@ const MockResponseStack: React.FC<{ response: ReturnType<typeof buildConciergeRe
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-2 text-amber-300"><DollarSign size={16} /> <p className="text-sm font-semibold text-white">Estimated cost</p></div>
-          <p className="mt-2 text-2xl font-black text-white">{money(response.estimatedCost)}</p>
-          <p className="mt-1 text-xs text-zinc-500">Around the cost of takeout for one night.</p>
+          <div className="flex items-center gap-2 text-amber-300"><Flame size={16} /> <p className="text-sm font-semibold text-white">Nutrition summary</p></div>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">{response.nutrition.summary}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-black/20 px-3 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Calories</p>
+              <p className="mt-1 text-lg font-black text-white">{response.nutrition.calories}</p>
+            </div>
+            <div className="rounded-xl bg-black/20 px-3 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Protein</p>
+              <p className="mt-1 text-lg font-black text-emerald-400">{response.nutrition.protein}</p>
+            </div>
+            <div className="rounded-xl bg-black/20 px-3 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Carbs</p>
+              <p className="mt-1 text-lg font-black text-amber-400">{response.nutrition.carbs}</p>
+            </div>
+            <div className="rounded-xl bg-black/20 px-3 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Fat</p>
+              <p className="mt-1 text-lg font-black text-zinc-300">{response.nutrition.fat}</p>
+            </div>
+          </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-2 text-amber-300"><Clock3 size={16} /> <p className="text-sm font-semibold text-white">Cost per serving</p></div>
-          <p className="mt-2 text-2xl font-black text-amber-400">{money(response.costPerServing)}</p>
-          <p className="mt-1 text-xs text-zinc-500">Efficient for leftovers and repeat lunches.</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-2 text-amber-300"><ChefHat size={16} /> <p className="text-sm font-semibold text-white">Serving size</p></div>
-          <p className="mt-2 text-2xl font-black text-emerald-400">{response.servings}</p>
-          <p className="mt-1 text-xs text-zinc-500">Perfect for a small household or dinner for guests.</p>
+
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2 text-amber-300"><DollarSign size={16} /> <p className="text-sm font-semibold text-white">Estimated grocery cost</p></div>
+            <p className="mt-2 text-2xl font-black text-white">{money(response.estimatedCost)}</p>
+            <p className="mt-1 text-xs text-zinc-500">{money(response.costPerServing)} per serving · {response.servings} servings</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2 text-amber-300"><Clock3 size={16} /> <p className="text-sm font-semibold text-white">Cook time</p></div>
+            <p className="mt-2 text-2xl font-black text-emerald-400">{response.cookTime} min</p>
+            <p className="mt-1 text-xs text-zinc-500">{response.prepTime} min prep · {response.totalTime} min total · {response.difficulty}</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-2xl border border-[#1db954]/20 bg-gradient-to-br from-[#1db954]/10 to-white/[0.03] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.25em] text-[#1db954]">Spotify playlist suggestion</p>
-              <h4 className="mt-1 font-semibold text-white">{playlist.title}</h4>
-            </div>
+      <div className="rounded-2xl border border-[#1db954]/20 bg-gradient-to-br from-[#1db954]/10 to-white/[0.03] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-[#1db954]">Spotify playlist</p>
+            <h4 className="mt-1 font-semibold text-white">{response.playlist.title}</h4>
+            <p className="mt-1 text-sm text-zinc-400">{response.playlist.mood}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-[#1db954]/30 bg-[#1db954]/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#1db954]">Coming soon</span>
             <Music4 size={18} className="text-[#1db954]" />
           </div>
-          <div className="mt-3">
-            <PlaylistCard playlist={playlist} compact />
-          </div>
         </div>
-
+        <p className="mt-3 text-sm leading-6 text-zinc-300">{response.playlist.description}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#1db954]/20 bg-black/20 px-4 py-3">
+          <Waveform />
+          <p className="text-xs text-zinc-500">Spotify integration coming soon — your cooking playlist will appear here.</p>
+        </div>
+      </div>
+      {artist && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Featured artist</p>
           <div className="mt-3">
             <ArtistCard artist={artist} />
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -342,6 +261,14 @@ const MockResponseStack: React.FC<{ response: ReturnType<typeof buildConciergeRe
   );
 };
 
+type Msg = {
+  role: "user" | "ai";
+  text?: string;
+  response?: ConciergeRecommendation;
+  error?: string;
+  prompt?: string;
+};
+
 export const Concierge: React.FC = () => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -353,14 +280,21 @@ export const Concierge: React.FC = () => {
   }, [messages, typing]);
 
   const send = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || typing) return;
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
     setTyping(true);
 
-    const fallback = conciergeResponses[text] || Object.values(conciergeResponses)[0];
-    const recommendation = await getConciergeRecipe(text);
-    setMessages((m) => [...m, { role: "ai", response: recommendation, resp: fallback }]);
+    const result = await getConciergeRecipe(text);
+
+    if (result.ok) {
+      setMessages((m) => [...m, { role: "ai", response: result.recipe, prompt: text }]);
+    } else if (result.recipe) {
+      setMessages((m) => [...m, { role: "ai", response: result.recipe, error: result.error, prompt: text }]);
+    } else {
+      setMessages((m) => [...m, { role: "ai", error: result.error, prompt: text }]);
+    }
+
     setTyping(false);
   };
 
@@ -373,11 +307,11 @@ export const Concierge: React.FC = () => {
           <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-amber-500/15 via-white/[0.03] to-emerald-500/10 p-6 sm:p-8">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-amber-300">
-                <ForkClef size={14} /> Premium concierge prototype
+                <ForkClef size={14} /> AI cooking assistant
               </div>
               <h1 className="mt-4 text-3xl font-black text-white sm:text-4xl">Turn ingredients into a full dinner plan.</h1>
               <p className="mt-3 text-base leading-7 text-zinc-300 sm:text-lg">
-                Describe what you have, and Foody Music will generate a recipe, ingredients, step-by-step cooking guide, coupons, a Spotify playlist, and kitchen gear suggestions in one polished flow.
+                Describe what you have, and Foody Music's AI will generate a recipe with ingredients, step-by-step instructions, nutrition, cost estimates, and a playlist placeholder — all in one polished flow.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">Budget-aware</span>
@@ -411,7 +345,15 @@ export const Concierge: React.FC = () => {
                   <Sparkles size={16} className="text-black" />
                 </div>
                 <div className="flex-1 rounded-2xl rounded-tl-sm border border-white/10 bg-white/[0.02] p-4">
-                  {message.response ? <MockResponseStack response={message.response} /> : message.resp ? <ResponseStack resp={message.resp} /> : null}
+                  {message.response ? (
+                    <RecipeResponseStack
+                      response={message.response}
+                      error={message.error}
+                      onRetry={message.prompt ? () => { void send(message.prompt!); } : undefined}
+                    />
+                  ) : message.error ? (
+                    <ErrorBanner message={message.error} onRetry={message.prompt ? () => { void send(message.prompt!); } : undefined} />
+                  ) : null}
                 </div>
               </div>
             )
@@ -422,10 +364,9 @@ export const Concierge: React.FC = () => {
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-emerald-500">
                 <Sparkles size={16} className="text-black" />
               </div>
-              <div className="flex gap-1">
-                {[0, 1, 2].map((dot) => (
-                  <span key={dot} className="h-2 w-2 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: `${dot * 150}ms` }} />
-                ))}
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <Loader2 size={16} className="animate-spin text-amber-400" />
+                <span className="text-sm text-zinc-400">Generating your recipe…</span>
               </div>
             </div>
           )}
@@ -455,7 +396,7 @@ export const Concierge: React.FC = () => {
             <Send size={16} />
           </button>
         </form>
-        <p className="mt-2 text-xs text-zinc-500">Recipes are generated through the concierge service and fall back gracefully when the AI service is unavailable.</p>
+        <p className="mt-2 text-xs text-zinc-500">Recipes are generated by OpenAI. Add OPENAI_API_KEY to your environment to enable the AI concierge.</p>
       </div>
     </div>
   );

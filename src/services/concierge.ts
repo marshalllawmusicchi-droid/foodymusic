@@ -1,3 +1,17 @@
+export type NutritionSummary = {
+  calories: number;
+  protein: string;
+  carbs: string;
+  fat: string;
+  summary: string;
+};
+
+export type PlaylistPlaceholder = {
+  title: string;
+  mood: string;
+  description: string;
+};
+
 export type ConciergeRecommendation = {
   title: string;
   description: string;
@@ -10,6 +24,9 @@ export type ConciergeRecommendation = {
   prepTime: number;
   cookTime: number;
   totalTime: number;
+  difficulty: "Easy" | "Medium" | "Hard";
+  nutrition: NutritionSummary;
+  playlist: PlaylistPlaceholder;
   recipeId: string;
   playlistId: string;
   couponIds: string[];
@@ -26,6 +43,10 @@ export type ConciergeRecommendation = {
   summary?: string;
   source?: "openai" | "fallback";
 };
+
+export type ConciergeResult =
+  | { ok: true; recipe: ConciergeRecommendation }
+  | { ok: false; error: string; recipe?: ConciergeRecommendation };
 
 type RecipeMatch = {
   keywords: string[];
@@ -512,7 +533,7 @@ const buildRecipeImage = (title: string, cuisine: string) => {
       </defs>
       <circle cx="900" cy="220" r="140" fill="rgba(255,255,255,0.14)" />
       <text x="90" y="250" fill="white" font-family="Arial, sans-serif" font-size="64" font-weight="700">${title}</text>
-      <text x="90" y="330" fill="#fef3c7" font-family="Arial, sans-serif" font-size="34">${cuisine} • Mock recipe preview</text>
+      <text x="90" y="330" fill="#fef3c7" font-family="Arial, sans-serif" font-size="34">${cuisine} • AI recipe</text>
       <text x="90" y="560" fill="white" font-family="Arial, sans-serif" font-size="34">Fresh, quick, and budget-aware</text>
     </svg>`;
 
@@ -574,44 +595,110 @@ const parseCost = (value: unknown): number => {
   return 0;
 };
 
-const normalizeRecipe = (recipe: Partial<ConciergeRecommendation> & { title?: string; description?: string; ingredients?: Array<{ name?: string; qty?: string; item?: string; quantity?: string }>; steps?: string[]; prepTime?: number | string; cookTime?: number | string; totalTime?: number | string; servings?: number | string; cuisine?: string; estimatedCost?: number | string; costPerServing?: number | string; vibe?: string; summary?: string; }): ConciergeRecommendation => {
-  const fallback = matchRecipe(recipe.title || "");
-  const title = recipe.title || fallback.title;
-  const description = recipe.description || fallback.description;
-  const ingredients = (recipe.ingredients && recipe.ingredients.length > 0 ? recipe.ingredients.map((ingredient) => ({
-    name: ingredient.name || ingredient.item || "Ingredient",
-    qty: ingredient.qty || ingredient.quantity || "to taste",
-  })) : fallback.ingredients);
-  const steps = (recipe.steps && recipe.steps.length > 0 ? recipe.steps : fallback.steps);
-  const estimatedCost = parseCost(recipe.estimatedCost);
-  const costPerServing = parseCost(recipe.costPerServing);
-  const servings = parseServings(recipe.servings);
-  const prepTime = parseNumericTime(recipe.prepTime);
-  const cookTime = parseNumericTime(recipe.cookTime);
-  const totalTime = parseNumericTime(recipe.totalTime);
-  const cuisine = recipe.cuisine || fallback.recipeCuisine;
-  const vibe = recipe.vibe || fallback.vibe;
+const parseDifficulty = (value: unknown): "Easy" | "Medium" | "Hard" => {
+  if (value === "Easy" || value === "Medium" || value === "Hard") return value;
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("easy")) return "Easy";
+    if (normalized.includes("hard")) return "Hard";
+  }
+  return "Medium";
+};
+
+const defaultNutrition = (summary: string): NutritionSummary => ({
+  calories: 450,
+  protein: "25g",
+  carbs: "40g",
+  fat: "18g",
+  summary,
+});
+
+const defaultPlaylist = (vibe: string): PlaylistPlaceholder => ({
+  title: "Cooking Vibes",
+  mood: vibe,
+  description: "Spotify playlist integration coming soon — cook along to curated tracks matched to your meal.",
+});
+
+const normalizeRecipe = (
+  recipe: Partial<ConciergeRecommendation> & {
+    title?: string;
+    description?: string;
+    ingredients?: Array<{ name?: string; qty?: string; item?: string; quantity?: string }>;
+    steps?: string[];
+    prepTime?: number | string;
+    cookTime?: number | string;
+    totalTime?: number | string;
+    servings?: number | string;
+    cuisine?: string;
+    difficulty?: string;
+    estimatedCost?: number | string;
+    costPerServing?: number | string;
+    vibe?: string;
+    summary?: string;
+    nutrition?: Partial<NutritionSummary>;
+    playlist?: Partial<PlaylistPlaceholder>;
+  },
+  source: "openai" | "fallback" = "openai",
+): ConciergeRecommendation => {
+  const catalogFallback = matchRecipe(recipe.title || "");
+  const title = recipe.title || catalogFallback.recipeTitle;
+  const description = recipe.description || catalogFallback.description;
+  const ingredients =
+    recipe.ingredients && recipe.ingredients.length > 0
+      ? recipe.ingredients.map((ingredient) => ({
+          name: ingredient.name || ingredient.item || "Ingredient",
+          qty: ingredient.qty || ingredient.quantity || "to taste",
+        }))
+      : catalogFallback.ingredients;
+  const steps = recipe.steps && recipe.steps.length > 0 ? recipe.steps : catalogFallback.steps;
+  const estimatedCost = parseCost(recipe.estimatedCost) || catalogFallback.estimatedCost;
+  const costPerServing = parseCost(recipe.costPerServing) || catalogFallback.costPerServing;
+  const servings = parseServings(recipe.servings) || catalogFallback.servings;
+  const prepTime = parseNumericTime(recipe.prepTime) || catalogFallback.prepTime;
+  const cookTime = parseNumericTime(recipe.cookTime) || catalogFallback.cookTime;
+  const totalTime = parseNumericTime(recipe.totalTime) || prepTime + cookTime || catalogFallback.totalTime;
+  const cuisine = recipe.cuisine || catalogFallback.recipeCuisine;
+  const vibe = recipe.vibe || catalogFallback.vibe;
   const summary = recipe.summary || description;
+  const difficulty = parseDifficulty(recipe.difficulty);
+  const nutrition: NutritionSummary = {
+    calories: recipe.nutrition?.calories ?? defaultNutrition(summary).calories,
+    protein: recipe.nutrition?.protein ?? defaultNutrition(summary).protein,
+    carbs: recipe.nutrition?.carbs ?? defaultNutrition(summary).carbs,
+    fat: recipe.nutrition?.fat ?? defaultNutrition(summary).fat,
+    summary: recipe.nutrition?.summary ?? summary,
+  };
+  const playlist: PlaylistPlaceholder = {
+    title: recipe.playlist?.title ?? defaultPlaylist(vibe).title,
+    mood: recipe.playlist?.mood ?? vibe,
+    description: recipe.playlist?.description ?? defaultPlaylist(vibe).description,
+  };
 
   return {
-    ...fallback,
+    ...catalogFallback,
     title,
     description,
     ingredients,
     steps,
-    estimatedCost: estimatedCost || fallback.estimatedCost,
-    costPerServing: costPerServing || fallback.costPerServing,
-    servings: servings || fallback.servings,
-    prepTime: prepTime || fallback.prepTime,
-    cookTime: cookTime || fallback.cookTime,
-    totalTime: totalTime || fallback.totalTime,
+    estimatedCost,
+    costPerServing,
+    servings,
+    prepTime,
+    cookTime,
+    totalTime,
+    difficulty,
+    nutrition,
+    playlist,
     recipeTitle: title,
     recipeCuisine: cuisine,
     vibe,
     summary,
-    source: "openai",
-    time: totalTime || prepTime + cookTime || fallback.time,
+    source,
+    matchFound: true,
+    time: totalTime,
     image: buildRecipeImage(title, cuisine),
+    musicVibe: playlist.mood,
+    budgetLabel: estimatedCost <= 15 ? "Budget-friendly" : estimatedCost <= 25 ? "Mid-range" : "Premium ingredients",
   };
 };
 
@@ -625,7 +712,7 @@ const parseRecipePayload = (content: string) => {
   return JSON.parse(cleaned);
 };
 
-export const getConciergeRecipe = async (prompt: string): Promise<ConciergeRecommendation> => {
+export const getConciergeRecipe = async (prompt: string): Promise<ConciergeResult> => {
   try {
     const response = await fetch("/api/concierge", {
       method: "POST",
@@ -635,20 +722,47 @@ export const getConciergeRecipe = async (prompt: string): Promise<ConciergeRecom
       body: JSON.stringify({ prompt }),
     });
 
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error("Unable to reach concierge service");
+      const errorMessage =
+        typeof data?.error === "string"
+          ? data.error
+          : "Unable to reach the AI concierge. Please try again.";
+
+      if (data?.recipe && data?.source === "fallback") {
+        return {
+          ok: false,
+          error: errorMessage,
+          recipe: normalizeRecipe(data.recipe, "fallback"),
+        };
+      }
+
+      return { ok: false, error: errorMessage };
     }
 
-    const data = await response.json();
     const recipePayload = data?.recipe;
+    const source = data?.source === "fallback" ? "fallback" : "openai";
 
     if (!recipePayload) {
-      throw new Error("No recipe returned");
+      return { ok: false, error: "No recipe was returned. Please try again." };
     }
 
-    return normalizeRecipe(recipePayload);
+    if (source === "fallback") {
+      return {
+        ok: false,
+        error: data?.error || "AI service is unavailable. Showing a sample recipe instead.",
+        recipe: normalizeRecipe(recipePayload, "fallback"),
+      };
+    }
+
+    return { ok: true, recipe: normalizeRecipe(recipePayload, "openai") };
   } catch {
-    return matchRecipe(prompt);
+    return {
+      ok: false,
+      error: "Network error — check your connection and try again.",
+      recipe: matchRecipe(prompt),
+    };
   }
 };
 
@@ -658,20 +772,25 @@ export const matchRecipe = (text: string): ConciergeRecommendation => {
   const match = recipeCatalog.find((item) => item.keywords.some((keyword) => normalized.includes(keyword)));
 
   if (match) {
+    const musicVibe = getMusicVibe(match.cuisine);
+    const totalTime = getRecipeTime(match);
     return {
       ...match,
-      title: `Recipe match: ${match.title}`,
-      description: `${match.description} This recommendation was selected from your request so the concierge feels responsive and personal.`,
+      title: match.title,
+      description: match.description,
       matchFound: true,
       recipeTitle: match.title,
       recipeCuisine: match.cuisine,
       image: buildRecipeImage(match.title, match.cuisine),
       grocerySavings: Number((match.estimatedCost * 0.24).toFixed(2)),
-      musicVibe: getMusicVibe(match.cuisine),
-      time: getRecipeTime(match),
-      prepTime: Math.max(10, Math.round(getRecipeTime(match) * 0.35)),
-      cookTime: Math.max(10, Math.round(getRecipeTime(match) * 0.65)),
-      totalTime: getRecipeTime(match),
+      musicVibe,
+      time: totalTime,
+      prepTime: Math.max(10, Math.round(totalTime * 0.35)),
+      cookTime: Math.max(10, Math.round(totalTime * 0.65)),
+      totalTime,
+      difficulty: totalTime <= 30 ? "Easy" : totalTime <= 60 ? "Medium" : "Hard",
+      nutrition: defaultNutrition(match.description),
+      playlist: defaultPlaylist(musicVibe),
       summary: match.description,
       source: "fallback",
     };
@@ -679,7 +798,7 @@ export const matchRecipe = (text: string): ConciergeRecommendation => {
 
   return {
     title: "No recipe found",
-    description: "Try a more common dish like fried chicken, burgers, tacos, pizza, steak, salmon, pasta, chili, BBQ ribs, meatloaf, or shrimp so I can match a recipe for you.",
+    description: "Try describing ingredients you have, a dish name, or a cuisine style — for example, “I have chicken, rice, and broccoli.”",
     ingredients: [{ name: "Try a different prompt", qty: "—" }],
     steps: ["Share a dish name, a few ingredients, or a cuisine style."],
     estimatedCost: 0,
@@ -702,7 +821,10 @@ export const matchRecipe = (text: string): ConciergeRecommendation => {
     prepTime: 0,
     cookTime: 0,
     totalTime: 0,
-    summary: "Try a more common dish name so I can generate a tailored recipe.",
+    difficulty: "Easy",
+    nutrition: defaultNutrition("Try a more specific cooking request."),
+    playlist: defaultPlaylist("Helpful and flexible"),
+    summary: "Try a more specific cooking request so the AI can generate a tailored recipe.",
     source: "fallback",
   };
 };

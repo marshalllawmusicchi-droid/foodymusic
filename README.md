@@ -1,21 +1,30 @@
 # React + TypeScript + Vite
 
-This app now supports an OpenAI-backed concierge experience.
+Foody Music includes an OpenAI-powered AI Concierge that generates real recipes from natural-language cooking requests.
 
 ## Environment setup
 
-Set the following environment variable before running locally or deploying:
+Copy `.env.example` to `.env.local` and add your OpenAI API key:
 
-- OPENAI_API_KEY=your_openai_api_key_here
+```bash
+cp .env.example .env.local
+```
 
-The API key is read only by the server-side concierge endpoint and is never exposed in the browser.
+Required variable:
+
+- `OPENAI_API_KEY` — your OpenAI API key (server-side only, never exposed to the browser)
+
+Optional:
+
+- `OPENAI_MODEL` — defaults to `gpt-4o-mini`
 
 ## Local development
 
-1. Install dependencies with npm install
-2. Start the Vite app with npm run dev
-3. The concierge UI will call the server endpoint at /api/concierge
+1. Install dependencies: `npm install`
+2. Add your API key to `.env.local`
+3. Start the dev server: `npm run dev`
+4. Open the Concierge at `/` or `/concierge` — it calls `/api/concierge` via the Vite dev middleware
 
 ## Vercel deployment
 
-Add OPENAI_API_KEY to your Vercel environment variables before deploying.
+Add `OPENAI_API_KEY` to your Vercel project environment variables before deploying.
