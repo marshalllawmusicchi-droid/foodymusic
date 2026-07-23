@@ -6,6 +6,7 @@ import { CouponCard, ProductCard, ArtistCard } from "../components/Cards";
 import { suggestedPrompts, coupons, artists, products } from "../data/seed";
 import { getConciergeRecipe, type ConciergeRecommendation } from "../services/concierge";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { RecipeGeneratedImage } from "../components/RecipeGeneratedImage";
 
 const money = (n: number) => "$" + n.toFixed(2);
 
@@ -258,6 +259,8 @@ const RecipeResponseStack: React.FC<{ response: ConciergeRecommendation; error?:
           </div>
         </div>
       </div>
+
+      <RecipeGeneratedImage response={response} />
     </div>
   );
 };
