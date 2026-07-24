@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { DEFAULT_OPENAI_MODEL, getOpenAIModel } from "../../api/openai-config";
+import { DEFAULT_OPENAI_MODEL, getOpenAIModel } from "../../lib/openai-config.js";
 
 describe("getOpenAIModel", () => {
   const originalModel = process.env.OPENAI_MODEL;

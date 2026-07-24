@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import conciergeHandler from "./api/concierge";
 import recipeImageHandler from "./api/recipe-image";
-import { DEFAULT_OPENAI_MODEL } from "./api/openai-config";
+import { DEFAULT_OPENAI_MODEL } from "./lib/openai-config";
 
 const applyOpenAIEnv = (mode: string) => {
   const env = loadEnv(mode, process.cwd(), "");
