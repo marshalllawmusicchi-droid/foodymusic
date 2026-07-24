@@ -1,4 +1,4 @@
-import { getOpenAIApiKey, getOpenAIModel } from "./openai-config";
+import { getOpenAIApiKey, getOpenAIModel } from "./openai-config.js";
 
 const parseRecipeFromContent = (content: string) => {
   const cleaned = content

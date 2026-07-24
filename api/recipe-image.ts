@@ -1,4 +1,4 @@
-import { getOpenAIApiKey } from "./openai-config";
+import { getOpenAIApiKey } from "./openai-config.js";
 
 export type RecipeImagePayload = {
   title: string;
