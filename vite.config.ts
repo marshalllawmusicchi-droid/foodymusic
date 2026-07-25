@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import conciergeHandler from "./api/concierge";
 import recipeImageHandler from "./api/recipe-image";
+import heyFoodyHandler from "./api/hey-foody";
 import { DEFAULT_OPENAI_MODEL } from "./lib/openai-config";
 
 const applyOpenAIEnv = (mode: string) => {
@@ -14,6 +15,7 @@ const applyOpenAIEnv = (mode: string) => {
 const apiRoutes: Record<string, (req: any, res: any) => Promise<void>> = {
   "/api/concierge": conciergeHandler,
   "/api/recipe-image": recipeImageHandler,
+  "/api/hey-foody": heyFoodyHandler,
 };
 
 const apiDevMiddleware = () => ({

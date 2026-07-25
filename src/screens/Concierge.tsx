@@ -7,6 +7,8 @@ import { suggestedPrompts, coupons, artists, products } from "../data/seed";
 import { getConciergeRecipe, type ConciergeRecommendation } from "../services/concierge";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { RecipeGeneratedImage } from "../components/RecipeGeneratedImage";
+import { HeyFoodyPanel } from "../components/HeyFoodyPanel";
+import { useHeyFoody } from "../hooks/useHeyFoody";
 
 const money = (n: number) => "$" + n.toFixed(2);
 
@@ -279,10 +281,26 @@ export const Concierge: React.FC = () => {
   const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const heyFoody = useHeyFoody({
+    onRecipeGenerated: (recipe, prompt) => {
+      setMessages((current) => [
+        ...current,
+        { role: "user", text: prompt },
+        { role: "ai", response: recipe, prompt },
+      ]);
+    },
+  });
 
-  const handleTranscript = useCallback((text: string) => {
-    setInput(text);
-  }, []);
+  const handleTranscript = useCallback(
+    (text: string, isFinal?: boolean) => {
+      if (heyFoody.active) {
+        heyFoody.handleVoiceInput(text, isFinal ?? true);
+        return;
+      }
+      setInput(text);
+    },
+    [heyFoody],
+  );
 
   const {
     isSupported: speechSupported,
@@ -291,7 +309,22 @@ export const Concierge: React.FC = () => {
     debugMessage: speechDebug,
     handleMicClick,
     stopListening,
+    startListening,
   } = useSpeechRecognition({ onTranscript: handleTranscript });
+
+  const onMicClick = useCallback(() => {
+    if (!heyFoody.active) {
+      heyFoody.activate();
+      startListening();
+      return;
+    }
+    handleMicClick();
+  }, [handleMicClick, heyFoody, startListening]);
+
+  const closeHeyFoody = useCallback(() => {
+    stopListening();
+    heyFoody.deactivate();
+  }, [heyFoody, stopListening]);
 
   useEffect(() => {
     if (!isListening && input.trim()) {
@@ -341,6 +374,7 @@ export const Concierge: React.FC = () => {
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">Budget-aware</span>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">Mobile-first</span>
+                <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm text-emerald-200">Hey Foody™ voice cooking</span>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">Spotify-ready</span>
               </div>
             </div>
@@ -399,6 +433,23 @@ export const Concierge: React.FC = () => {
         </div>
       )}
 
+      <HeyFoodyPanel
+        active={heyFoody.active}
+        phase={heyFoody.phase}
+        messages={heyFoody.messages}
+        recipe={heyFoody.recipe}
+        stepIndex={heyFoody.stepIndex}
+        busy={heyFoody.busy}
+        isListening={isListening}
+        speechSupported={speechSupported}
+        onClose={closeHeyFoody}
+        onSubmit={(text) => {
+          void heyFoody.handleInput(text);
+        }}
+        onNext={heyFoody.advanceStep}
+        onMicToggle={onMicClick}
+      />
+
       <div className="sticky bottom-16 mt-4 bg-[#0a0a0b] pt-2 lg:bottom-4">
         {!empty && (
           <div className="mb-2 flex gap-2 overflow-x-auto pb-2">
@@ -422,11 +473,19 @@ export const Concierge: React.FC = () => {
           {speechSupported && (
             <button
               type="button"
-              onClick={handleMicClick}
+              onClick={onMicClick}
               disabled={typing}
-              aria-label={isListening ? "Stop listening" : "Start voice input"}
+              aria-label={
+                heyFoody.active
+                  ? isListening
+                    ? "Stop Hey Foody listening"
+                    : "Speak to Hey Foody"
+                  : isListening
+                    ? "Stop listening"
+                    : "Start Hey Foody voice cooking"
+              }
               className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                isListening
+                isListening || heyFoody.active
                   ? "bg-rose-500/20 text-rose-300 ring-2 ring-rose-500/40 animate-pulse"
                   : "bg-white/10 text-zinc-300 hover:bg-white/15 hover:text-amber-300"
               } disabled:cursor-not-allowed disabled:opacity-50`}
@@ -442,10 +501,15 @@ export const Concierge: React.FC = () => {
             <Send size={16} />
           </button>
         </form>
-        {isListening && (
+        {isListening && !heyFoody.active && (
           <p className="mt-2 flex items-center gap-2 text-xs text-amber-300">
             <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-400" />
             Listening… speak your cooking request, then edit or press Send.
+          </p>
+        )}
+        {heyFoody.active && !isListening && (
+          <p className="mt-2 text-xs text-emerald-300">
+            Hey Foody™ is active — tap the mic to speak, or use the panel above.
           </p>
         )}
         {speechDebug && (
@@ -458,10 +522,10 @@ export const Concierge: React.FC = () => {
             {speechError}
           </p>
         )}
-        {!isListening && (
+        {!isListening && !heyFoody.active && (
           <p className="mt-2 text-xs text-zinc-500">
             {speechSupported
-              ? "Recipes are generated by OpenAI. Tap the microphone to speak your request."
+              ? "Tap the microphone for Hey Foody™ step-by-step cooking, or type a request and press Send."
               : "Voice input is not supported in this browser. Type your request instead."}
           </p>
         )}
