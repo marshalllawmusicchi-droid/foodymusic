@@ -19,7 +19,7 @@ Migrate from DatabasePad (`*.databasepad.com`) to a Supabase project you own at 
 
 Add these to:
 
-- `.env.local` (local dev)
+- `.env.local` (local dev) — use [.env.supabase.example](../.env.supabase.example) as a template
 - Vercel project settings (production + preview)
 
 ### Files to update at cutover (do not change yet)
@@ -135,53 +135,13 @@ No Storage buckets need to be created on the new Supabase project for feature pa
 
 Run in order in the Supabase SQL Editor (or via Supabase CLI).
 
-### Migration A — `000_fm_profiles.sql` (must be authored — missing from repo)
+### Migration A — `000_fm_profiles.sql`
 
-This table existed on DatabasePad but was never checked into git. Create before cookbooks:
+**Path:** `supabase/migrations/000_fm_profiles.sql`
 
-```sql
--- 000_fm_profiles.sql (inferred from AppContext.tsx — verify before running)
+Creates `fm_profiles` with owner-only RLS and an `auth.users` trigger to auto-create profiles on signup (the app also upserts manually as a fallback).
 
-create table if not exists public.fm_profiles (
-  id uuid primary key references auth.users (id) on delete cascade,
-  name text,
-  premium boolean not null default false,
-  saved_recipes text[] not null default '{}',
-  clipped_coupons text[] not null default '{}',
-  followed_artists text[] not null default '{}',
-  dietary text[] not null default '{}',
-  grocery jsonb not null default '{}',
-  updated_at timestamptz not null default now()
-);
-
-alter table public.fm_profiles enable row level security;
-
-create policy "Users manage own profile"
-  on public.fm_profiles
-  for all
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
-
--- Optional: auto-create profile on signup (app also upserts manually)
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-begin
-  insert into public.fm_profiles (id, name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)))
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-```
-
-### Migration B — `001_cookbooks.sql` (exists in repo)
+### Migration B — `001_cookbooks.sql`
 
 **Path:** `supabase/migrations/001_cookbooks.sql`
 

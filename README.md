@@ -28,3 +28,11 @@ Optional:
 ## Vercel deployment
 
 Add `OPENAI_API_KEY` to your Vercel project environment variables before deploying.
+
+## Supabase migration (DatabasePad → owned Supabase)
+
+Foody Music is migrating off the legacy DatabasePad backend. To set up your own Supabase project:
+
+1. Read [docs/SUPABASE_MIGRATION_PLAN.md](docs/SUPABASE_MIGRATION_PLAN.md)
+2. Run SQL migrations in `supabase/migrations/` (000 → 001)
+3. Copy [.env.supabase.example](.env.supabase.example) values into `.env.local` and Vercel
