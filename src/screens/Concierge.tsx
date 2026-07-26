@@ -8,6 +8,7 @@ import { getConciergeRecipe, type ConciergeRecommendation } from "../services/co
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { RecipeGeneratedImage } from "../components/RecipeGeneratedImage";
 import { HeyFoodyPanel } from "../components/HeyFoodyPanel";
+import { AddToCookbookButton } from "../components/cookbook/AddToCookbookButton";
 import { useHeyFoody } from "../hooks/useHeyFoody";
 
 const money = (n: number) => "$" + n.toFixed(2);
@@ -84,6 +85,9 @@ const RecipeResponseStack: React.FC<{ response: ConciergeRecommendation; error?:
               <span className="rounded-full bg-[#1db954]/15 px-3 py-1 text-xs text-[#1db954]">{response.servings} servings</span>
               <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs text-amber-200">Prep {response.prepTime} min</span>
               <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs text-amber-200">Cook {response.cookTime} min</span>
+            </div>
+            <div className="mt-4">
+              <AddToCookbookButton recipe={response} />
             </div>
           </div>
 

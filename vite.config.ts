@@ -4,6 +4,7 @@ import path from "path";
 import conciergeHandler from "./api/concierge";
 import recipeImageHandler from "./api/recipe-image";
 import heyFoodyHandler from "./api/hey-foody";
+import cookbookPdfHandler from "./api/cookbook-pdf";
 import { DEFAULT_OPENAI_MODEL } from "./lib/openai-config";
 
 const applyOpenAIEnv = (mode: string) => {
@@ -16,6 +17,7 @@ const apiRoutes: Record<string, (req: any, res: any) => Promise<void>> = {
   "/api/concierge": conciergeHandler,
   "/api/recipe-image": recipeImageHandler,
   "/api/hey-foody": heyFoodyHandler,
+  "/api/cookbook-pdf": cookbookPdfHandler,
 };
 
 const apiDevMiddleware = () => ({
@@ -54,16 +56,25 @@ const apiDevMiddleware = () => ({
           },
         });
 
-        const mockReq = { method: req.method, body: parsedBody };
+        const mockReq = {
+          method: req.method,
+          body: parsedBody,
+          headers: req.headers ?? {},
+        };
         const mockRes = {
+          statusCode: 200,
           status: (code: number) => createJsonResponder(code),
           json: (payload: unknown) => {
             res.statusCode = 200;
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));
           },
-          setHeader: res.setHeader.bind(res),
-          end: res.end.bind(res),
+          setHeader: (name: string, value: string) => {
+            res.setHeader(name, value);
+          },
+          end: (payload?: string | Buffer) => {
+            res.end(payload);
+          },
         };
 
         try {

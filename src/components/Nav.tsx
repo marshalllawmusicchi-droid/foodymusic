@@ -1,7 +1,7 @@
 import React from "react";
 import {
   Sparkles, UtensilsCrossed, Music2, Tag, ListChecks, ChefHat,
-  Mic2, Store, Crown, User, LayoutDashboard, LogIn,
+  Mic2, Store, Crown, User, LayoutDashboard, LogIn, BookOpen,
 } from "lucide-react";
 import { Logo } from "./ui/Logo";
 import { useApp, View } from "../context/AppContext";
@@ -16,6 +16,7 @@ const items: { view: View; label: string; icon: React.ElementType }[] = [
   { view: "artists", label: "Artists", icon: Mic2 },
   { view: "brands", label: "Brands", icon: Store },
   { view: "subscription", label: "Premium", icon: Crown },
+  { view: "cookbooks", label: "My Cookbooks", icon: BookOpen },
   { view: "admin", label: "Admin", icon: LayoutDashboard },
 ];
 
@@ -34,7 +35,7 @@ export const Sidebar: React.FC = () => {
       <Logo size={34} onClick={() => navigate(user ? "concierge" : "landing")} />
       <nav className="mt-8 flex-1 space-y-1">
         {items.map((it) => {
-          const active = view === it.view;
+          const active = view === it.view || (it.view === "cookbooks" && view === "cookbookDetail");
           return (
             <button
               key={it.view}

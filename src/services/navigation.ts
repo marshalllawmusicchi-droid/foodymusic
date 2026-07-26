@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Crown,
   ChefHat,
   Home,
@@ -39,6 +40,10 @@ export const appRouteToPath = (route: AppRouteId | View): string => {
       return "/subscription";
     case "admin":
       return "/admin";
+    case "cookbooks":
+      return "/cookbooks";
+    case "cookbookDetail":
+      return "/cookbooks";
     case "landing":
     default:
       return "/";
@@ -69,6 +74,8 @@ export const pathToAppRoute = (pathname: string): AppRouteId => {
       return "subscription";
     case "/admin":
       return "admin";
+    case "/cookbooks":
+      return "cookbooks";
     case "/":
     default:
       return "landing";
@@ -139,6 +146,13 @@ export const getNavigationItems = (): NavItem[] => [
     description: "Premium features and billing",
     icon: Crown,
     premium: true,
+  },
+  {
+    id: "cookbooks",
+    label: "My Cookbooks",
+    href: appRouteToPath("cookbooks"),
+    description: "Build, organize, and export personal recipe cookbooks",
+    icon: BookOpen,
   },
   {
     id: "profile",

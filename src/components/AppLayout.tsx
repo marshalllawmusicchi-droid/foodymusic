@@ -14,6 +14,8 @@ import { Brands } from "../screens/Brands";
 import { Subscription } from "../screens/Subscription";
 import { Profile } from "../screens/Profile";
 import { Admin } from "../screens/Admin";
+import { Cookbooks } from "../screens/Cookbooks";
+import { CookbookBuilder } from "../screens/CookbookBuilder";
 import ConciergePage from "../pages/ConciergePage";
 import RecipesPage from "../pages/RecipesPage";
 import GroceryPage from "../pages/GroceryPage";
@@ -26,7 +28,7 @@ import SubscriptionPage from "../pages/SubscriptionPage";
 import AdminPage from "../pages/AdminPage";
 
 const Screen: React.FC = () => {
-  const { view } = useApp();
+  const { view, activeCookbookId } = useApp();
   switch (view) {
     case "concierge": return <Concierge />;
     case "recipes": return <Recipes />;
@@ -40,29 +42,41 @@ const Screen: React.FC = () => {
     case "subscription": return <Subscription />;
     case "profile": return <Profile />;
     case "admin": return <Admin />;
+    case "cookbooks": return <Cookbooks />;
+    case "cookbookDetail": return <CookbookBuilder cookbookId={activeCookbookId ?? ""} />;
     default: return <Concierge />;
   }
 };
 
-const pathToView = (pathname: string): import("../context/AppContext").View => {
+const pathToView = (pathname: string): { view: import("../context/AppContext").View; cookbookId?: string } => {
+  const cookbookMatch = pathname.match(/^\/cookbooks\/([^/]+)$/);
+  if (cookbookMatch) return { view: "cookbookDetail", cookbookId: cookbookMatch[1] };
+
   switch (pathname) {
-    case "/concierge": return "concierge";
-    case "/recipes": return "recipes";
-    case "/grocery": return "grocery";
-    case "/kitchen": return "kitchen";
-    case "/music": return "music";
-    case "/artists": return "artists";
-    case "/deals": return "deals";
-    case "/brands": return "brands";
-    case "/profile": return "profile";
-    case "/subscription": return "subscription";
-    case "/admin": return "admin";
+    case "/concierge": return { view: "concierge" };
+    case "/recipes": return { view: "recipes" };
+    case "/grocery": return { view: "grocery" };
+    case "/kitchen": return { view: "kitchen" };
+    case "/music": return { view: "music" };
+    case "/artists": return { view: "artists" };
+    case "/deals": return { view: "deals" };
+    case "/brands": return { view: "brands" };
+    case "/profile": return { view: "profile" };
+    case "/subscription": return { view: "subscription" };
+    case "/admin": return { view: "admin" };
+    case "/cookbooks": return { view: "cookbooks" };
     case "/":
-    default: return "landing";
+    default: return { view: "landing" };
   }
 };
 
 const placeholderForPath = (pathname: string) => {
+  const cookbookMatch = pathname.match(/^\/cookbooks(?:\/([^/]+))?$/);
+  if (cookbookMatch) {
+    const cookbookId = cookbookMatch[1];
+    return cookbookId ? <CookbookBuilder cookbookId={cookbookId} /> : <Cookbooks />;
+  }
+
   switch (pathname) {
     case "/concierge": return <Concierge />;
     case "/recipes": return <RecipesPage />;
@@ -83,9 +97,9 @@ const Shell: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const nextView = pathToView(location.pathname);
-    if (nextView !== view) {
-      navigate(nextView);
+    const next = pathToView(location.pathname);
+    if (next.view !== view) {
+      navigate(next.view, next.cookbookId);
     }
   }, [location.pathname, navigate, view]);
 

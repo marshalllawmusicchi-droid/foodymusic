@@ -4,14 +4,15 @@ import { supabase } from "@/lib/supabase";
 export type View =
   | "landing" | "concierge" | "recipes" | "recipeDetail" | "music"
   | "deals" | "grocery" | "kitchen" | "artists" | "brands"
-  | "subscription" | "profile" | "admin";
+  | "subscription" | "profile" | "admin" | "cookbooks" | "cookbookDetail";
 
 type User = { id: string; name: string; email: string };
 
 type Ctx = {
   view: View;
-  navigate: (v: View, recipeId?: string) => void;
+  navigate: (v: View, id?: string) => void;
   activeRecipe: string | null;
+  activeCookbookId: string | null;
   user: User | null;
   authReady: boolean;
   authError: string | null;
@@ -46,6 +47,7 @@ const DEFAULT_DIETARY = ["Vegetarian", "Gluten-Free"];
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [view, setView] = useState<View>("landing");
   const [activeRecipe, setActiveRecipe] = useState<string | null>(null);
+  const [activeCookbookId, setActiveCookbookId] = useState<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -61,7 +63,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadedRef = useRef(false); // true once a profile is loaded for current user
 
-  const getPathForView = useCallback((viewName: View) => {
+  const getPathForView = useCallback((viewName: View, id?: string) => {
     switch (viewName) {
       case "concierge": return "/concierge";
       case "recipes": return "/recipes";
@@ -75,16 +77,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       case "profile": return "/profile";
       case "subscription": return "/subscription";
       case "admin": return "/admin";
+      case "cookbooks": return "/cookbooks";
+      case "cookbookDetail": return id ? `/cookbooks/${id}` : "/cookbooks";
       case "landing":
       default: return "/";
     }
   }, []);
 
-  const navigate = useCallback((v: View, recipeId?: string) => {
-    if (recipeId) setActiveRecipe(recipeId);
+  const navigate = useCallback((v: View, id?: string) => {
+    if (v === "recipeDetail" && id) setActiveRecipe(id);
+    if (v === "cookbookDetail" && id) setActiveCookbookId(id);
     setView(v);
 
-    const nextPath = getPathForView(v);
+    const nextPath = getPathForView(v, id);
     if (window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
       window.dispatchEvent(new PopStateEvent("popstate"));
@@ -208,7 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
-        view, navigate, activeRecipe,
+        view, navigate, activeRecipe, activeCookbookId,
         user, authReady, authError, authBusy, signUp, signIn, logout,
         premium, setPremium,
         saved, toggleSave: toggle(setSaved),

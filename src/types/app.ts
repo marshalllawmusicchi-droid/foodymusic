@@ -12,7 +12,9 @@ export type AppRouteId =
   | "brands"
   | "profile"
   | "subscription"
-  | "admin";
+  | "admin"
+  | "cookbooks"
+  | "cookbookDetail";
 
 export interface NavItem {
   id: AppRouteId;
