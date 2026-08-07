@@ -4,20 +4,45 @@ import path from "path";
 import conciergeHandler from "./api/concierge";
 import recipeImageHandler from "./api/recipe-image";
 import heyFoodyHandler from "./api/hey-foody";
-import cookbookPdfHandler from "./api/cookbook-pdf";
 import { DEFAULT_OPENAI_MODEL } from "./lib/openai-config";
 
-const applyOpenAIEnv = (mode: string) => {
+type ApiHandler = (req: any, res: any) => Promise<void>;
+
+const loadLocalEnv = (mode: string) => {
   const env = loadEnv(mode, process.cwd(), "");
   process.env.OPENAI_API_KEY = (process.env.OPENAI_API_KEY || env.OPENAI_API_KEY || "").trim();
   process.env.OPENAI_MODEL = (process.env.OPENAI_MODEL || env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL).trim();
+  process.env.VITE_SUPABASE_URL = (process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL || "").trim();
+  process.env.VITE_SUPABASE_ANON_KEY = (
+    process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || ""
+  ).trim();
 };
 
-const apiRoutes: Record<string, (req: any, res: any) => Promise<void>> = {
+const validateSupabaseEnv = () => {
+  for (const name of ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"] as const) {
+    if (!process.env[name]) {
+      throw new Error(
+        `Missing required environment variable ${name}. Add it to .env.local — see .env.supabase.example.`,
+      );
+    }
+  }
+};
+
+const staticApiRoutes: Record<string, ApiHandler> = {
   "/api/concierge": conciergeHandler,
   "/api/recipe-image": recipeImageHandler,
   "/api/hey-foody": heyFoodyHandler,
-  "/api/cookbook-pdf": cookbookPdfHandler,
+};
+
+let cookbookPdfHandlerPromise: Promise<ApiHandler> | undefined;
+
+const getCookbookPdfHandler = (mode: string) => {
+  cookbookPdfHandlerPromise ??= (async () => {
+    loadLocalEnv(mode);
+    validateSupabaseEnv();
+    return (await import("./api/cookbook-pdf")).default;
+  })();
+  return cookbookPdfHandlerPromise;
 };
 
 const apiDevMiddleware = () => ({
@@ -29,13 +54,16 @@ const apiDevMiddleware = () => ({
         return;
       }
 
-      const handler = apiRoutes[req.url ?? ""];
+      const url = req.url ?? "";
+      const handler =
+        staticApiRoutes[url] ??
+        (url === "/api/cookbook-pdf" ? await getCookbookPdfHandler(server.config.mode) : undefined);
       if (!handler) {
         next();
         return;
       }
 
-      applyOpenAIEnv(server.config.mode);
+      loadLocalEnv(server.config.mode);
 
       let body = "";
       req.on("data", (chunk: string) => {
@@ -91,7 +119,8 @@ const apiDevMiddleware = () => ({
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  applyOpenAIEnv(mode);
+  loadLocalEnv(mode);
+  validateSupabaseEnv();
 
   return {
   base: "/",

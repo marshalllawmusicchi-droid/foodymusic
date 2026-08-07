@@ -1,3 +1,12 @@
-export const SUPABASE_URL = "https://zwbutfjmqxvjyiuoxiic.databasepad.com";
-export const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImE1ZDljYmRmLWY5NjYtNDYyNy1iZjVlLTQ5NTE5YzJmNzk3NCJ9.eyJwcm9qZWN0SWQiOiJ6d2J1dGZqbXF4dmp5aXVveGlpYyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzgyMzczNjg4LCJleHAiOjIwOTc3MzM2ODgsImlzcyI6ImZhbW91cy5kYXRhYmFzZXBhZCIsImF1ZCI6ImZhbW91cy5jbGllbnRzIn0.fXSD0gmYXksoFN1bAIltQaaXylhb10qy7CbvcS7yICw";
+const readRequiredEnv = (name: "VITE_SUPABASE_URL" | "VITE_SUPABASE_ANON_KEY"): string => {
+  const value = (process.env[name] ?? "").trim();
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable ${name}. Add it to .env.local — see .env.supabase.example.`,
+    );
+  }
+  return value;
+};
+
+export const SUPABASE_URL = readRequiredEnv("VITE_SUPABASE_URL");
+export const SUPABASE_ANON_KEY = readRequiredEnv("VITE_SUPABASE_ANON_KEY");

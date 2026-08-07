@@ -2,7 +2,7 @@
 
 Migrate from DatabasePad (`*.databasepad.com`) to a Supabase project you own at `*.supabase.co`.
 
-**Status:** Preparation only. Production code still uses hardcoded credentials in `src/lib/supabase.ts` and `lib/supabase-config.ts` until the cutover phase.
+**Status:** Wired to environment variables. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` and Vercel.
 
 ---
 
@@ -12,24 +12,21 @@ Migrate from DatabasePad (`*.databasepad.com`) to a Supabase project you own at 
 
 | Variable | Where used | Purpose |
 |----------|------------|---------|
-| `VITE_SUPABASE_URL` | Browser client (`src/lib/supabase.ts`) | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Browser client | Public anon key |
-| `SUPABASE_URL` | Server (`api/cookbook-pdf.ts`, `lib/supabase-config.ts`) | Same URL for API routes |
-| `SUPABASE_ANON_KEY` | Server | Same anon key for JWT verification |
+| `VITE_SUPABASE_URL` | Browser client (`src/lib/supabase.ts`) and server (`lib/supabase-config.ts`) | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Browser client and server | Public anon key |
 
 Add these to:
 
 - `.env.local` (local dev) — use [.env.supabase.example](../.env.supabase.example) as a template
 - Vercel project settings (production + preview)
 
-### Files to update at cutover (do not change yet)
+### Files updated for env-based configuration
 
 | File | Change |
 |------|--------|
-| `src/lib/supabase.ts` | Read `import.meta.env.VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; throw if missing |
-| `lib/supabase-config.ts` | Read `process.env.SUPABASE_URL` / `SUPABASE_ANON_KEY` with fallback to `VITE_*` for dev |
-| `vite.config.ts` | Optionally mirror OpenAI pattern: load Supabase env in dev middleware |
-| `.env.example` | Already updated with placeholders |
+| `src/lib/supabase.ts` | Reads `import.meta.env.VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` |
+| `lib/supabase-config.ts` | Reads `process.env.VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` |
+| `vite.config.ts` | Loads Supabase env for local API middleware |
 
 ### Security notes
 
