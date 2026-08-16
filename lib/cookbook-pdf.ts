@@ -2,6 +2,71 @@ import PDFDocument from "pdfkit";
 import type { CookbookRecipe, CookbookSection, CookbookWithContents } from "../src/types/cookbook";
 
 const PAGE = { width: 612, height: 792, margin: 54 };
+const RECIPE_IMAGE_MAX_HEIGHT = 180;
+const RECIPE_IMAGE_GAP = 14;
+const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2;
+
+const loadRecipeImageBuffer = async (url: string, recipeTitle: string): Promise<Buffer> => {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    throw new Error(`Unable to load recipe image for "${recipeTitle}": missing image URL.`);
+  }
+
+  if (trimmed.startsWith("data:")) {
+    const base64 = trimmed.split(",")[1];
+    if (!base64) {
+      throw new Error(`Unable to load recipe image for "${recipeTitle}": invalid data URL.`);
+    }
+    return Buffer.from(base64, "base64");
+  }
+
+  if (trimmed.startsWith("blob:")) {
+    throw new Error(
+      `Unable to load recipe image for "${recipeTitle}": temporary blob URLs cannot be exported. Re-save the recipe to store a permanent image.`,
+    );
+  }
+
+  if (!/^https?:\/\//i.test(trimmed)) {
+    throw new Error(`Unable to load recipe image for "${recipeTitle}": unsupported image URL.`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(trimmed);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "network error";
+    throw new Error(`Unable to load recipe image for "${recipeTitle}": ${message}.`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`Unable to load recipe image for "${recipeTitle}": HTTP ${response.status}.`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length === 0) {
+    throw new Error(`Unable to load recipe image for "${recipeTitle}": empty image response.`);
+  }
+
+  return buffer;
+};
+
+const loadRecipeImageBuffers = async (
+  cookbook: CookbookWithContents,
+): Promise<Map<string, Buffer>> => {
+  const imageBuffers = new Map<string, Buffer>();
+
+  await Promise.all(
+    cookbook.recipes.map(async (recipe) => {
+      const imageUrl = recipe.recipeSnapshot.image?.trim();
+      if (!imageUrl) return;
+
+      const buffer = await loadRecipeImageBuffer(imageUrl, recipe.recipeSnapshot.title);
+      imageBuffers.set(recipe.id, buffer);
+    }),
+  );
+
+  return imageBuffers;
+};
 
 const addFooter = (doc: PDFKit.PDFDocument, label: string) => {
   doc.fontSize(9).fillColor("#666666").text(label, PAGE.margin, PAGE.height - 36, {
@@ -88,11 +153,25 @@ const addSectionDivider = (doc: PDFKit.PDFDocument, section: CookbookSection) =>
   });
 };
 
-const addRecipePage = (doc: PDFKit.PDFDocument, recipe: CookbookRecipe) => {
+const addRecipePage = (
+  doc: PDFKit.PDFDocument,
+  recipe: CookbookRecipe,
+  imageBuffer?: Buffer,
+) => {
   const snapshot = recipe.recipeSnapshot;
   doc.addPage();
-  doc.fillColor("#111111").fontSize(22).text(snapshot.title, PAGE.margin, PAGE.margin, {
-    width: PAGE.width - PAGE.margin * 2,
+  let contentTop = PAGE.margin;
+
+  if (imageBuffer) {
+    doc.image(imageBuffer, PAGE.margin, contentTop, {
+      fit: [CONTENT_WIDTH, RECIPE_IMAGE_MAX_HEIGHT],
+      align: "center",
+    });
+    contentTop += RECIPE_IMAGE_MAX_HEIGHT + RECIPE_IMAGE_GAP;
+  }
+
+  doc.fillColor("#111111").fontSize(22).text(snapshot.title, PAGE.margin, contentTop, {
+    width: CONTENT_WIDTH,
   });
   doc.moveDown(0.4);
   doc.fontSize(10).fillColor("#71717a").text(
@@ -130,8 +209,10 @@ const addRecipePage = (doc: PDFKit.PDFDocument, recipe: CookbookRecipe) => {
   addFooter(doc, snapshot.title);
 };
 
-export const renderCookbookPdf = (cookbook: CookbookWithContents): Promise<Buffer> =>
-  new Promise((resolve, reject) => {
+export const renderCookbookPdf = async (cookbook: CookbookWithContents): Promise<Buffer> => {
+  const recipeImages = await loadRecipeImageBuffers(cookbook);
+
+  return new Promise((resolve, reject) => {
     const sectionPageMap = new Map<string, number>();
     let pageNumber = 4;
 
@@ -160,8 +241,11 @@ export const renderCookbookPdf = (cookbook: CookbookWithContents): Promise<Buffe
       const sectionRecipes = cookbook.recipes.filter((recipe) => recipe.sectionId === section.id);
       if (sectionRecipes.length === 0) return;
       addSectionDivider(doc, section);
-      sectionRecipes.forEach((recipe) => addRecipePage(doc, recipe));
+      sectionRecipes.forEach((recipe) =>
+        addRecipePage(doc, recipe, recipeImages.get(recipe.id)),
+      );
     });
 
     doc.end();
   });
+};
