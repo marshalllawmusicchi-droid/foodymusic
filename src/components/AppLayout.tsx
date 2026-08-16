@@ -85,7 +85,7 @@ const placeholderForPath = (pathname: string) => {
     case "/music": return <MusicPage />;
     case "/artists": return <ArtistsPage />;
     case "/deals": return <DealsPage />;
-    case "/profile": return <ProfilePage />;
+    case "/profile": return <Profile />;
     case "/subscription": return <SubscriptionPage />;
     case "/admin": return <AdminPage />;
     default: return null;
