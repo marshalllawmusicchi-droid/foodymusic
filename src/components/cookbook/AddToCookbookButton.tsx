@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BookPlus, Check, Loader2, X } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { supabase } from "@/lib/supabase";
 import { listCookbooks, addRecipeToCookbook, getCookbook } from "@/services/cookbook";
-import { snapshotFromConcierge } from "@/services/cookbookRecipe";
+import { persistRecipeImageForSnapshot, snapshotFromConcierge } from "@/services/cookbookRecipe";
 import type { ConciergeRecommendation } from "@/services/concierge";
 import type { Cookbook, CookbookSection } from "@/types/cookbook";
 import { useRecipeImage } from "@/hooks/useRecipeImage";
@@ -26,11 +26,6 @@ export const AddToCookbookButton: React.FC<AddToCookbookButtonProps> = ({ recipe
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const snapshot = useMemo(
-    () => snapshotFromConcierge(recipe, imageUrl || recipe.image),
-    [recipe, imageUrl],
-  );
 
   useEffect(() => {
     if (!open || !user) return;
@@ -69,6 +64,11 @@ export const AddToCookbookButton: React.FC<AddToCookbookButtonProps> = ({ recipe
     try {
       const book = await getCookbook(selectedCookbookId);
       const sortOrder = book?.recipes.length ?? 0;
+      const persistedImage = await persistRecipeImageForSnapshot(
+        imageUrl || recipe.image,
+        user.id,
+      );
+      const snapshot = snapshotFromConcierge(recipe, persistedImage);
       await addRecipeToCookbook({
         cookbookId: selectedCookbookId,
         sectionId: selectedSectionId || null,
@@ -76,7 +76,7 @@ export const AddToCookbookButton: React.FC<AddToCookbookButtonProps> = ({ recipe
         personalNotes,
         sortOrder,
       });
-      setSuccess(`Added to ${book?.title ?? "cookbook"}.`);
+      setSuccess(`Saved to ${book?.title ?? "cookbook"}.`);
       setTimeout(() => setOpen(false), 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to add recipe.");
@@ -101,7 +101,7 @@ export const AddToCookbookButton: React.FC<AddToCookbookButtonProps> = ({ recipe
         }}
         className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/25"
       >
-        <BookPlus size={16} /> Add to Cookbook
+        <BookPlus size={16} /> Save Recipe
       </button>
 
       {open && (
@@ -109,8 +109,8 @@ export const AddToCookbookButton: React.FC<AddToCookbookButtonProps> = ({ recipe
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#121214] p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Cookbook Builder</p>
-                <h3 className="mt-1 text-lg font-bold text-white">Save this recipe</h3>
+                <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400">Save Recipe</p>
+                <h3 className="mt-1 text-lg font-bold text-white">Choose a cookbook</h3>
                 <p className="mt-1 text-sm text-zinc-400">{recipe.title}</p>
               </div>
               <button
@@ -199,7 +199,7 @@ export const AddToCookbookButton: React.FC<AddToCookbookButtonProps> = ({ recipe
                     className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-black disabled:opacity-60"
                   >
                     {saving && <Loader2 size={14} className="animate-spin" />}
-                    Save recipe
+                    Save Recipe
                   </button>
                   <button
                     type="button"
