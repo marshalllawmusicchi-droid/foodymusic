@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Loader2, PiggyBank, Search, Tag } from "lucide-react";
 import { Page, Section, StatPill } from "../components/ui/common";
 import { DealCard } from "../components/deals/DealCard";
-import { fetchDeals } from "../services/deals";
-import type { DealFilter, GroceryDeal } from "../types/deals";
+import { searchDeals } from "../services/deals";
+import type { Deal, DealFilter } from "../types/deals";
 
 const FILTERS: { id: DealFilter; label: string }[] = [
   { id: "nearby", label: "Nearby" },
@@ -16,9 +16,11 @@ export const Deals: React.FC = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<DealFilter[]>([]);
-  const [deals, setDeals] = useState<GroceryDeal[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [usedFallback, setUsedFallback] = useState(false);
+  const [fallbackReason, setFallbackReason] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 250);
@@ -28,13 +30,16 @@ export const Deals: React.FC = () => {
   const loadDeals = useCallback(async () => {
     setLoading(true);
     setError("");
+    setUsedFallback(false);
+    setFallbackReason("");
     try {
-      setDeals(
-        await fetchDeals({
-          query: debouncedSearch,
-          filters: activeFilters,
-        }),
-      );
+      const result = await searchDeals({
+        query: debouncedSearch,
+        filters: activeFilters,
+      });
+      setDeals(result.deals);
+      setUsedFallback(result.usedFallback);
+      setFallbackReason(result.fallbackReason ?? "");
     } catch (err) {
       setDeals([]);
       setError(err instanceof Error ? err.message : "Unable to load deals.");
@@ -128,6 +133,12 @@ export const Deals: React.FC = () => {
       </Section>
 
       <Section title="Available Deals" sub="Mock sample data — ready for a future external deals API">
+        {!loading && !error && usedFallback && (
+          <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {fallbackReason || "Showing sample deals while the live provider is unavailable."}
+          </div>
+        )}
+
         {loading && (
           <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-zinc-400">
             <Loader2 size={18} className="animate-spin text-emerald-400" />

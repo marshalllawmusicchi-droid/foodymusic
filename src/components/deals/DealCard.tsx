@@ -3,12 +3,12 @@ import { Check, ListPlus, MapPin, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/Logo";
 import { useApp } from "@/context/AppContext";
 import { dealSavingsAmount, dealSavingsPercent } from "@/services/deals";
-import type { GroceryDeal } from "@/types/deals";
+import type { Deal } from "@/types/deals";
 
 const money = (value: number) => `$${value.toFixed(2)}`;
 
 type DealCardProps = {
-  deal: GroceryDeal;
+  deal: Deal;
 };
 
 export const DealCard: React.FC<DealCardProps> = ({ deal }) => {

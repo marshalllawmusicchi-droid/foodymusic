@@ -1,6 +1,6 @@
-import type { GroceryDeal } from "@/types/deals";
+import type { Deal } from "@/types/deals";
 
-export const mockGroceryDeals: GroceryDeal[] = [
+export const mockGroceryDeals: Deal[] = [
   {
     id: "deal-1",
     productName: "Organic Chicken Thighs",

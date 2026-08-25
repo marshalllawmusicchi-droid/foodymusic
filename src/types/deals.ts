@@ -1,6 +1,7 @@
 export type DealFilter = "nearby" | "groceryItems" | "coupons" | "weekly";
 
-export type GroceryDeal = {
+/** Normalized deal model used across all providers and UI components. */
+export type Deal = {
   id: string;
   productName: string;
   store: string;
@@ -16,7 +17,34 @@ export type GroceryDeal = {
   distanceMiles?: number;
 };
 
-export type FetchDealsParams = {
+/** @deprecated Use {@link Deal} instead. */
+export type GroceryDeal = Deal;
+
+export type DealSearchParams = {
   query?: string;
   filters?: DealFilter[];
 };
+
+/** @deprecated Use {@link DealSearchParams} instead. */
+export type FetchDealsParams = DealSearchParams;
+
+export type NearbyDealsParams = {
+  radiusMiles?: number;
+  filters?: DealFilter[];
+  query?: string;
+};
+
+export type DealsProviderId = "mock" | "external";
+
+export type DealsSearchResult = {
+  deals: Deal[];
+  source: DealsProviderId;
+  usedFallback: boolean;
+  fallbackReason?: string;
+};
+
+export interface DealsDataProvider {
+  readonly id: DealsProviderId;
+  searchDeals(params: DealSearchParams): Promise<Deal[]>;
+  getNearbyDeals(params?: NearbyDealsParams): Promise<Deal[]>;
+}
