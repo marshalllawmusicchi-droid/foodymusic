@@ -22,8 +22,6 @@ import GroceryPage from "../pages/GroceryPage";
 import KitchenPage from "../pages/KitchenPage";
 import MusicPage from "../pages/MusicPage";
 import ArtistsPage from "../pages/ArtistsPage";
-import DealsPage from "../pages/DealsPage";
-import ProfilePage from "../pages/ProfilePage";
 import SubscriptionPage from "../pages/SubscriptionPage";
 import AdminPage from "../pages/AdminPage";
 
@@ -84,7 +82,7 @@ const placeholderForPath = (pathname: string) => {
     case "/kitchen": return <KitchenPage />;
     case "/music": return <MusicPage />;
     case "/artists": return <ArtistsPage />;
-    case "/deals": return <DealsPage />;
+    case "/deals": return <Deals />;
     case "/profile": return <Profile />;
     case "/subscription": return <SubscriptionPage />;
     case "/admin": return <AdminPage />;
