@@ -71,6 +71,8 @@ export const getNearbyDeals = async (params: NearbyDealsParams = {}): Promise<De
   return searchDeals({
     query: params.query,
     filters,
+    zipCode: params.zipCode,
+    radiusMiles: params.radiusMiles,
   });
 };
 

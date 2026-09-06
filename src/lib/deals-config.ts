@@ -17,8 +17,8 @@ const parseBoolean = (value: string, defaultValue: boolean): boolean => {
 export const dealsConfig = {
   /** Active provider: "mock" (default) or "external". */
   provider: parseProvider(readEnv("VITE_DEALS_PROVIDER")),
-  /** Base URL for a future external deals API (no trailing slash). */
-  apiBaseUrl: readEnv("VITE_DEALS_API_BASE_URL"),
+  /** Base URL for the server deals proxy (no trailing slash). Defaults to /api/deals in external mode. */
+  apiBaseUrl: readEnv("VITE_DEALS_API_BASE_URL") || (parseProvider(readEnv("VITE_DEALS_PROVIDER")) === "external" ? "/api/deals" : ""),
   /** When true, failed external requests fall back to mock sample data. */
   fallbackToMock: parseBoolean(readEnv("VITE_DEALS_FALLBACK_TO_MOCK"), true),
   isExternalConfigured(): boolean {

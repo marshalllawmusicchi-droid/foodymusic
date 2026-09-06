@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Loader2, PiggyBank, Search, Tag } from "lucide-react";
 import { Page, Section, StatPill } from "../components/ui/common";
 import { DealCard } from "../components/deals/DealCard";
+import { dealsConfig } from "@/lib/deals-config";
 import { searchDeals } from "../services/deals";
-import type { Deal, DealFilter } from "../types/deals";
+import type { Deal, DealFilter, DealsProviderId } from "../types/deals";
 
 const FILTERS: { id: DealFilter; label: string }[] = [
   { id: "nearby", label: "Nearby" },
@@ -12,13 +13,43 @@ const FILTERS: { id: DealFilter; label: string }[] = [
   { id: "weekly", label: "Weekly Deals" },
 ];
 
+const ZIP_STORAGE_KEY = "foody-deals-zip";
+
+const getAvailableDealsSubtitle = (
+  loading: boolean,
+  source: DealsProviderId | null,
+  usedFallback: boolean,
+): string => {
+  if (loading) {
+    return dealsConfig.provider === "external"
+      ? "Loading live Kroger deals near your ZIP code…"
+      : "Loading sample deals…";
+  }
+
+  if (dealsConfig.provider === "external") {
+    if (usedFallback) {
+      return "Sample deals shown while the live Kroger provider is unavailable.";
+    }
+    if (source === "external") {
+      return "Live Kroger deals near your ZIP code.";
+    }
+  }
+
+  return "Sample deals for local development and demos.";
+};
+
 export const Deals: React.FC = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [zipCode, setZipCode] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(ZIP_STORAGE_KEY) ?? "";
+  });
   const [activeFilters, setActiveFilters] = useState<DealFilter[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [source, setSource] = useState<DealsProviderId | null>(null);
   const [usedFallback, setUsedFallback] = useState(false);
   const [fallbackReason, setFallbackReason] = useState("");
 
@@ -27,26 +58,36 @@ export const Deals: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    if (zipCode.trim()) {
+      window.localStorage.setItem(ZIP_STORAGE_KEY, zipCode.trim());
+    }
+  }, [zipCode]);
+
   const loadDeals = useCallback(async () => {
     setLoading(true);
     setError("");
+    setSource(null);
     setUsedFallback(false);
     setFallbackReason("");
     try {
       const result = await searchDeals({
         query: debouncedSearch,
         filters: activeFilters,
+        zipCode: zipCode.trim() || undefined,
       });
       setDeals(result.deals);
+      setSource(result.source);
       setUsedFallback(result.usedFallback);
       setFallbackReason(result.fallbackReason ?? "");
     } catch (err) {
       setDeals([]);
+      setSource(null);
       setError(err instanceof Error ? err.message : "Unable to load deals.");
     } finally {
       setLoading(false);
     }
-  }, [activeFilters, debouncedSearch]);
+  }, [activeFilters, debouncedSearch, zipCode]);
 
   useEffect(() => {
     void loadDeals();
@@ -87,19 +128,36 @@ export const Deals: React.FC = () => {
         <StatPill label="Active Filters" value={String(activeFilters.length)} accent="text-amber-400" />
       </div>
 
-      <Section title="Find Savings" sub="Search by grocery item or ingredient">
-        <label className="block">
-          <span className="sr-only">Search deals</span>
-          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 focus-within:border-emerald-500/40">
-            <Search size={18} className="text-zinc-500" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search chicken, rice, lemon, olive oil..."
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-500"
-            />
-          </div>
-        </label>
+      <Section title="Find Savings" sub="Search by grocery item or ingredient near your ZIP code">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_9rem]">
+          <label className="block">
+            <span className="sr-only">Search deals</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 focus-within:border-emerald-500/40">
+              <Search size={18} className="text-zinc-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search chicken, rice, lemon, olive oil..."
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-500"
+              />
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="sr-only">ZIP code</span>
+            <div className="flex h-full items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 focus-within:border-emerald-500/40">
+              <input
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                inputMode="numeric"
+                pattern="[0-9]{5}"
+                maxLength={5}
+                placeholder="ZIP code"
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-500"
+              />
+            </div>
+          </label>
+        </div>
 
         <div
           className="mt-4 flex gap-2 overflow-x-auto pb-2 no-scrollbar"
@@ -132,10 +190,25 @@ export const Deals: React.FC = () => {
         </div>
       </Section>
 
-      <Section title="Available Deals" sub="Mock sample data — ready for a future external deals API">
+      <Section
+        title="Available Deals"
+        sub={getAvailableDealsSubtitle(loading, source, usedFallback)}
+      >
         {!loading && !error && usedFallback && (
-          <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            {fallbackReason || "Showing sample deals while the live provider is unavailable."}
+          <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <p className="text-sm font-semibold text-amber-100">Live deals unavailable</p>
+            <p className="mt-1 text-sm text-amber-100/90">
+              {fallbackReason || "The external deals provider could not load live results."}
+            </p>
+            <p className="mt-2 text-xs text-amber-200/80">
+              Showing sample deals until the live provider recovers.
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && !usedFallback && source === "external" && (
+          <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            Showing live Kroger deals from your configured store search.
           </div>
         )}
 

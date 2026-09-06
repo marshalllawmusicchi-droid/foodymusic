@@ -23,6 +23,9 @@ export type GroceryDeal = Deal;
 export type DealSearchParams = {
   query?: string;
   filters?: DealFilter[];
+  /** US ZIP code for Kroger store lookup (5 digits). */
+  zipCode?: string;
+  radiusMiles?: number;
 };
 
 /** @deprecated Use {@link DealSearchParams} instead. */
@@ -32,6 +35,7 @@ export type NearbyDealsParams = {
   radiusMiles?: number;
   filters?: DealFilter[];
   query?: string;
+  zipCode?: string;
 };
 
 export type DealsProviderId = "mock" | "external";

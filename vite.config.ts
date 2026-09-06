@@ -4,6 +4,7 @@ import path from "path";
 import conciergeHandler from "./api/concierge";
 import recipeImageHandler from "./api/recipe-image";
 import heyFoodyHandler from "./api/hey-foody";
+import dealsHandler from "./api/deals";
 import { DEFAULT_OPENAI_MODEL } from "./lib/openai-config";
 
 type ApiHandler = (req: any, res: any) => Promise<void>;
@@ -15,6 +16,10 @@ const loadLocalEnv = (mode: string) => {
   process.env.VITE_SUPABASE_URL = (process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL || "").trim();
   process.env.VITE_SUPABASE_ANON_KEY = (
     process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || ""
+  ).trim();
+  process.env.KROGER_CLIENT_ID = (process.env.KROGER_CLIENT_ID || env.KROGER_CLIENT_ID || "").trim();
+  process.env.KROGER_CLIENT_SECRET = (
+    process.env.KROGER_CLIENT_SECRET || env.KROGER_CLIENT_SECRET || ""
   ).trim();
 };
 
@@ -32,6 +37,7 @@ const staticApiRoutes: Record<string, ApiHandler> = {
   "/api/concierge": conciergeHandler,
   "/api/recipe-image": recipeImageHandler,
   "/api/hey-foody": heyFoodyHandler,
+  "/api/deals": dealsHandler,
 };
 
 let cookbookPdfHandlerPromise: Promise<ApiHandler> | undefined;

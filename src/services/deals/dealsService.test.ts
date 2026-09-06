@@ -36,10 +36,25 @@ describe("mockDealsProvider", () => {
 
 describe("searchDeals", () => {
   it("returns mock deals by default", async () => {
-    const result = await searchDeals({ query: "rice" });
+    vi.resetModules();
+    vi.doMock("@/lib/deals-config", () => ({
+      dealsConfig: {
+        provider: "mock",
+        apiBaseUrl: "",
+        fallbackToMock: true,
+        isExternalConfigured: () => false,
+      },
+    }));
+
+    const { searchDeals: searchWithMockConfig } = await import("./dealsService");
+    const result = await searchWithMockConfig({ query: "rice" });
+
     expect(result.source).toBe("mock");
     expect(result.usedFallback).toBe(false);
     expect(result.deals.length).toBeGreaterThan(0);
+
+    vi.doUnmock("@/lib/deals-config");
+    vi.resetModules();
   });
 
   it("filters deals by nearby and coupon filters", async () => {
@@ -73,6 +88,33 @@ describe("searchDeals", () => {
     expect(result.deals.length).toBeGreaterThan(0);
 
     vi.doUnmock("@/lib/deals-config");
+    vi.resetModules();
+  });
+
+  it("falls back to mock data when external provider request fails", async () => {
+    vi.resetModules();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "Kroger unavailable" }), { status: 502 })),
+    );
+    vi.doMock("@/lib/deals-config", () => ({
+      dealsConfig: {
+        provider: "external",
+        apiBaseUrl: "/api/deals",
+        fallbackToMock: true,
+        isExternalConfigured: () => true,
+      },
+    }));
+
+    const { searchDeals: searchWithExternalConfig } = await import("./dealsService");
+    const result = await searchWithExternalConfig({ query: "rice", zipCode: "45202" });
+
+    expect(result.source).toBe("mock");
+    expect(result.usedFallback).toBe(true);
+    expect(result.deals.length).toBeGreaterThan(0);
+
+    vi.doUnmock("@/lib/deals-config");
+    vi.unstubAllGlobals();
     vi.resetModules();
   });
 });

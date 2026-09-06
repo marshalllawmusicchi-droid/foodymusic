@@ -1,19 +1,37 @@
 import { dealsConfig } from "@/lib/deals-config";
 import type { Deal, DealFilter, DealSearchParams, DealsDataProvider, NearbyDealsParams } from "@/types/deals";
 
-/**
- * Stub for a future external grocery/deals API.
- * Does not call any third-party service until implemented server-side.
- */
+type DealsApiResponse = {
+  deals?: Deal[];
+  error?: string;
+};
+
+const resolveApiUrl = (): string => {
+  const base = dealsConfig.apiBaseUrl.replace(/\/$/, "");
+  return base || "/api/deals";
+};
+
 export class ExternalDealsProvider implements DealsDataProvider {
   readonly id = "external" as const;
 
-  async searchDeals(_params: DealSearchParams): Promise<Deal[]> {
+  async searchDeals(params: DealSearchParams = {}): Promise<Deal[]> {
     if (!dealsConfig.isExternalConfigured()) {
       throw new Error("External deals provider is not configured.");
     }
 
-    throw new Error("External deals provider is not implemented yet.");
+    const response = await fetch(resolveApiUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+
+    const payload = (await response.json()) as DealsApiResponse;
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Unable to load external deals.");
+    }
+
+    return payload.deals ?? [];
   }
 
   async getNearbyDeals(params: NearbyDealsParams = {}): Promise<Deal[]> {
@@ -21,6 +39,8 @@ export class ExternalDealsProvider implements DealsDataProvider {
     return this.searchDeals({
       query: params.query,
       filters,
+      zipCode: params.zipCode,
+      radiusMiles: params.radiusMiles,
     });
   }
 }
