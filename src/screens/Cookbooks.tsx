@@ -1,27 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { BookOpen, Loader2, Plus, Trash2 } from "lucide-react";
 import { Page, Section } from "@/components/ui/common";
-import { ForkClef } from "@/components/ui/Logo";
 import { useApp } from "@/context/AppContext";
 import { createCookbook, deleteCookbook, listCookbooks } from "@/services/cookbook";
 import type { Cookbook } from "@/types/cookbook";
-
-const AuthPrompt: React.FC = () => {
-  const { navigate } = useApp();
-  return (
-    <div className="max-w-md mx-auto py-16 text-center">
-      <div className="flex justify-center mb-5"><ForkClef size={56} /></div>
-      <h1 className="text-2xl font-black text-white">Sign in to build cookbooks</h1>
-      <p className="text-zinc-400 mt-2">Save AI-generated recipes into beautifully organized personal cookbooks.</p>
-      <button
-        onClick={() => navigate("profile")}
-        className="mt-6 rounded-full bg-amber-500 px-6 py-3 text-sm font-bold text-black"
-      >
-        Go to sign in
-      </button>
-    </div>
-  );
-};
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -95,7 +77,39 @@ export const Cookbooks: React.FC = () => {
   if (!user) {
     return (
       <Page>
-        <AuthPrompt />
+        <Section
+          title="My Cookbooks"
+          sub="Create, organize, and export your Foody Music recipe collections."
+          action={
+            <button
+              type="button"
+              onClick={() => navigate("profile")}
+              className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-black"
+            >
+              Go to sign in
+            </button>
+          }
+        >
+          <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Sign in to create and save your cookbook.
+          </div>
+
+          <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+            <BookOpen size={40} className="mx-auto text-amber-400" />
+            <h3 className="mt-4 text-lg font-bold text-white">Build your personal cookbook</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              Generate a recipe in AI Concierge, save it to a cookbook, organize sections, and export a PDF when you are
+              ready.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("profile")}
+              className="mt-5 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-black"
+            >
+              Sign in to get started
+            </button>
+          </div>
+        </Section>
       </Page>
     );
   }

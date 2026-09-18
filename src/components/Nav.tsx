@@ -23,8 +23,9 @@ const items: { view: View; label: string; icon: React.ElementType }[] = [
 const mobileTabs: { view: View; label: string; icon: React.ElementType }[] = [
   { view: "concierge", label: "Concierge", icon: Sparkles },
   { view: "recipes", label: "Recipes", icon: UtensilsCrossed },
-  { view: "music", label: "Music", icon: Music2 },
+  { view: "cookbooks", label: "Cookbooks", icon: BookOpen },
   { view: "deals", label: "Deals", icon: Tag },
+  { view: "music", label: "Music", icon: Music2 },
   { view: "profile", label: "Profile", icon: User },
 ];
 
@@ -85,9 +86,9 @@ export const TopBar: React.FC = () => {
 export const BottomNav: React.FC = () => {
   const { view, navigate } = useApp();
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t border-white/10 bg-[#0d0d0f]/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-6 border-t border-white/10 bg-[#0d0d0f]/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       {mobileTabs.map((t) => {
-        const active = view === t.view;
+        const active = view === t.view || (t.view === "cookbooks" && view === "cookbookDetail");
         return (
           <button key={t.view} onClick={() => navigate(t.view)} className="flex flex-col items-center gap-0.5 py-2.5">
             <t.icon size={20} className={active ? "text-amber-400" : "text-zinc-500"} />
