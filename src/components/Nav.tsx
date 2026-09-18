@@ -9,14 +9,14 @@ import { useApp, View } from "../context/AppContext";
 const items: { view: View; label: string; icon: React.ElementType }[] = [
   { view: "concierge", label: "Concierge", icon: Sparkles },
   { view: "recipes", label: "Recipes", icon: UtensilsCrossed },
-  { view: "music", label: "Music", icon: Music2 },
+  { view: "cookbooks", label: "My Cookbooks", icon: BookOpen },
   { view: "deals", label: "Deals", icon: Tag },
+  { view: "music", label: "Music", icon: Music2 },
   { view: "grocery", label: "Grocery", icon: ListChecks },
   { view: "kitchen", label: "Kitchen+", icon: ChefHat },
   { view: "artists", label: "Artists", icon: Mic2 },
   { view: "brands", label: "Brands", icon: Store },
   { view: "subscription", label: "Premium", icon: Crown },
-  { view: "cookbooks", label: "My Cookbooks", icon: BookOpen },
   { view: "admin", label: "Admin", icon: LayoutDashboard },
 ];
 
@@ -37,6 +37,7 @@ export const Sidebar: React.FC = () => {
       <nav className="mt-8 flex-1 space-y-1">
         {items.map((it) => {
           const active = view === it.view || (it.view === "cookbooks" && view === "cookbookDetail");
+          const label = it.view === "cookbooks" && !user ? "Cookbooks" : it.label;
           return (
             <button
               key={it.view}
@@ -45,7 +46,7 @@ export const Sidebar: React.FC = () => {
                 active ? "bg-amber-500/15 text-amber-300" : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <it.icon size={18} /> {it.label}
+              <it.icon size={18} /> {label}
             </button>
           );
         })}
