@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+
 export type NutritionSummary = {
   calories: number;
   protein: string;
@@ -714,11 +716,19 @@ const parseRecipePayload = (content: string) => {
 
 export const getConciergeRecipe = async (prompt: string): Promise<ConciergeResult> => {
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch("/api/concierge", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ prompt }),
     });
 

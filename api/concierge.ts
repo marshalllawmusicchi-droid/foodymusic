@@ -103,6 +103,35 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const { extractBearerToken, verifySupabaseUser } = await import("../lib/api-auth.js");
+  const { incrementUsageIfAllowed } = await import("../lib/supabase-admin.js");
+  const { buildTrialDeniedPayload } = await import("../lib/trial-usage-messages.js");
+
+  const token = extractBearerToken(req.headers);
+  if (!token) {
+    res.status(401).json({ error: "Sign in to use the AI Concierge." });
+    return;
+  }
+
+  const user = await verifySupabaseUser(token);
+  if (!user) {
+    res.status(401).json({ error: "Invalid or expired session." });
+    return;
+  }
+
+  try {
+    const usage = await incrementUsageIfAllowed(user.id, "concierge");
+    if (!usage.allowed) {
+      const denied = buildTrialDeniedPayload(usage);
+      res.status(denied.statusCode).json(denied.payload);
+      return;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to verify trial usage.";
+    res.status(503).json({ error: message });
+    return;
+  }
+
   const apiKey = getOpenAIApiKey();
   const model = getOpenAIModel();
 
