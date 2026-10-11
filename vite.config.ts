@@ -17,6 +17,9 @@ const loadLocalEnv = (mode: string) => {
   process.env.VITE_SUPABASE_ANON_KEY = (
     process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || ""
   ).trim();
+  process.env.SUPABASE_SERVICE_ROLE_KEY = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || ""
+  ).trim();
   process.env.KROGER_CLIENT_ID = (process.env.KROGER_CLIENT_ID || env.KROGER_CLIENT_ID || "").trim();
   process.env.KROGER_CLIENT_SECRET = (
     process.env.KROGER_CLIENT_SECRET || env.KROGER_CLIENT_SECRET || ""

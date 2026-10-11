@@ -1,12 +1,53 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import conciergeHandler from "../../api/concierge";
 import { buildConciergeRecommendation, getConciergeRecipe, matchRecipe } from "./concierge";
 
+const incrementUsageIfAllowed = vi.fn();
+const verifySupabaseUser = vi.fn();
+
+vi.mock("../../lib/supabase-admin.js", () => ({
+  incrementUsageIfAllowed: (...args: unknown[]) => incrementUsageIfAllowed(...args),
+}));
+
+vi.mock("../../lib/api-auth.js", () => ({
+  extractBearerToken: (headers?: Record<string, string | string[] | undefined>) => {
+    const authHeader = headers?.authorization ?? headers?.Authorization;
+    return typeof authHeader === "string" ? authHeader.replace(/^Bearer\s+/i, "").trim() : "";
+  },
+  verifySupabaseUser: (...args: unknown[]) => verifySupabaseUser(...args),
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "test-access-token" } },
+      }),
+    },
+  },
+}));
+
 describe("buildConciergeRecommendation", () => {
+  beforeEach(() => {
+    incrementUsageIfAllowed.mockReset();
+    verifySupabaseUser.mockReset();
+    incrementUsageIfAllowed.mockResolvedValue({
+      allowed: true,
+      reason: "trial",
+      status: "trial",
+      feature: "concierge",
+    });
+    verifySupabaseUser.mockResolvedValue({ id: "user-123" });
+  });
+
   it("returns a fallback recipe when the OpenAI API key is missing", async () => {
     delete process.env.OPENAI_API_KEY;
 
-    const req = { method: "POST", body: { prompt: "fried chicken" } };
+    const req = {
+      method: "POST",
+      body: { prompt: "fried chicken" },
+      headers: { authorization: "Bearer test-access-token" },
+    };
     const res = {
       statusCode: 200,
       status: vi.fn().mockReturnThis(),
@@ -20,6 +61,7 @@ describe("buildConciergeRecommendation", () => {
 
     await conciergeHandler(req as any, res as any);
 
+    expect(incrementUsageIfAllowed).toHaveBeenCalledWith("user-123", "concierge");
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: expect.any(String),
@@ -27,6 +69,74 @@ describe("buildConciergeRecommendation", () => {
         title: expect.any(String),
       }),
       source: "fallback",
+    }));
+  });
+
+  it("requires sign-in before generating a recipe", async () => {
+    const req = { method: "POST", body: { prompt: "fried chicken" }, headers: {} };
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+
+    await conciergeHandler(req as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: "Sign in to use the AI Concierge." });
+    expect(incrementUsageIfAllowed).not.toHaveBeenCalled();
+  });
+
+  it("blocks concierge requests when the trial has expired", async () => {
+    incrementUsageIfAllowed.mockResolvedValue({
+      allowed: false,
+      reason: "trial_expired",
+      status: "expired",
+      feature: "concierge",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "fried chicken" },
+      headers: { authorization: "Bearer test-access-token" },
+    };
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+
+    await conciergeHandler(req as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.stringContaining("3-day trial has ended"),
+      reason: "trial_expired",
+    }));
+  });
+
+  it("blocks concierge requests when the daily trial cap is reached", async () => {
+    incrementUsageIfAllowed.mockResolvedValue({
+      allowed: false,
+      reason: "trial_cap_reached",
+      status: "trial",
+      feature: "concierge",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "fried chicken" },
+      headers: { authorization: "Bearer test-access-token" },
+    };
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+
+    await conciergeHandler(req as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.stringContaining("trial limit"),
+      reason: "trial_cap_reached",
     }));
   });
 
